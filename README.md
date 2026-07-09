@@ -41,6 +41,12 @@ GLM 5.2 działa jako tani wykonawca w VS Code. Przed pracą powinien otrzymać
 Nie dostaje zadań wymagających decyzji architektonicznych, dostępu do sekretów,
 migracji, płatności, uprawnień ani operacji destrukcyjnych.
 
+Repozytorium zawiera również automatyczne instrukcje dla narzędzi:
+
+- `CLAUDE.md` ustawia Fable jako planistę i advisora w Claude Code;
+- `.clinerules` ustawia GLM jako taniego wykonawcę w panelu Cline w VS Code;
+- `AGENTS.md` jest wspólnym kontraktem dla wszystkich środowisk.
+
 ## Inspiracja i modyfikacje
 
 Mechanika Wayfindera, specyfikacji i małych tickets została zaadaptowana z
