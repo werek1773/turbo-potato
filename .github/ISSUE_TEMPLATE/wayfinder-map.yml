@@ -1,0 +1,36 @@
+name: Wayfinder map
+description: Map a large or unclear initiative before implementation.
+title: "Map: "
+labels:
+  - "wayfinder:map"
+body:
+  - type: textarea
+    id: destination
+    attributes:
+      label: Destination
+      description: What observable result marks the end of this map?
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Repositories, constraints, standing preferences, and required skills.
+  - type: textarea
+    id: decisions
+    attributes:
+      label: Decisions so far
+      description: Add one linked gist per resolved child issue.
+      placeholder: "- [Ticket title](URL) — one-line answer"
+  - type: textarea
+    id: fog
+    attributes:
+      label: Not yet specified
+      description: In-scope questions that cannot yet be phrased precisely.
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of scope
+      description: Explicit boundaries that will not graduate into tickets.
+    validations:
+      required: true

@@ -1,0 +1,65 @@
+name: Fable specification
+description: Execution-ready specification created from a resolved Wayfinder map.
+title: "Spec: "
+labels:
+  - "specification"
+body:
+  - type: input
+    id: map
+    attributes:
+      label: Source Wayfinder map
+      placeholder: "#123"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and outcome
+      description: User problem and observable result.
+    validations:
+      required: true
+  - type: textarea
+    id: requirements
+    attributes:
+      label: Requirements and user stories
+      description: Numbered, testable requirements.
+    validations:
+      required: true
+  - type: textarea
+    id: decisions
+    attributes:
+      label: Implementation constraints and decisions
+      description: Link research and decisions; distinguish facts, inferences, and user choices.
+    validations:
+      required: true
+  - type: textarea
+    id: proof
+    attributes:
+      label: Testing and proof
+      description: Stable seams, commands, and acceptance evidence.
+    validations:
+      required: true
+  - type: textarea
+    id: operations
+    attributes:
+      label: Security, privacy, cost, and operations
+      description: Limits, monitoring, rollback, and scale constraints.
+    validations:
+      required: true
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of scope
+    validations:
+      required: true
+  - type: dropdown
+    id: advisor
+    attributes:
+      label: Fable advisor verdict
+      options:
+        - PENDING
+        - APPROVED
+        - CHANGES_REQUIRED
+        - BLOCKED
+    validations:
+      required: true

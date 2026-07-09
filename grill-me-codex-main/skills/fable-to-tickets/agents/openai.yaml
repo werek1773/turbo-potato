@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fable To Tickets"
+  short_description: "Split a spec and assign the right model"
+  default_prompt: "Use $fable-to-tickets to create tickets and route each one to GPT or GLM."

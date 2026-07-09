@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fable Advisor"
+  short_description: "Evaluate results and advise the next action"
+  default_prompt: "Use $fable-advisor to evaluate this run and issue the next bounded prompt."

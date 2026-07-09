@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex Research"
+  short_description: "Research decisions from primary sources"
+  default_prompt: "Use $codex-research to investigate this GitHub ticket and record sourced findings."

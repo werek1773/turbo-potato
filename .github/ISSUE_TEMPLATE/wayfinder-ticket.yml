@@ -1,0 +1,43 @@
+name: Wayfinder ticket
+description: Resolve one research, decision, prototype, or prerequisite question.
+title: "Wayfinder: "
+body:
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      options:
+        - research
+        - decision
+        - prototype
+        - task
+    validations:
+      required: true
+  - type: input
+    id: parent
+    attributes:
+      label: Parent map
+      placeholder: "#123"
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: The single decision or investigation this issue resolves.
+    validations:
+      required: true
+  - type: textarea
+    id: blocked_by
+    attributes:
+      label: Blocked by
+      description: Link blocking issues or write None.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Resolution criteria
+      description: What evidence is enough to close this issue?
+    validations:
+      required: true

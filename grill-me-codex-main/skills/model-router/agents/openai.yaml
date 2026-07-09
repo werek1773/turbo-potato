@@ -1,0 +1,4 @@
+interface:
+  display_name: "Model Router"
+  short_description: "Route work by risk, complexity, and cost"
+  default_prompt: "Use $model-router to choose Fable, GPT 5.6 SOL, or GLM 5.2 for these tasks."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "GPT Code"
+  short_description: "Implement complex and high-risk coding tasks"
+  default_prompt: "Use $gpt-code with the configured GPT 5.6 SOL profile to implement this approved ticket."

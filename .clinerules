@@ -1,0 +1,22 @@
+# GLM 5.2 worker rules
+
+Read `AGENTS.md` and the assigned GitHub Issue before acting.
+
+This VS Code agent is the low-cost GLM worker:
+
+- execute only tickets explicitly routed to GLM 5.2;
+- use the `glm-batch` procedure;
+- never make product or architecture decisions;
+- never handle secrets, auth, payments, permissions, migrations, destructive
+  operations, or tasks without objective validation;
+- use stable item IDs, idempotent writes, canaries, checkpoints, bounded
+  concurrency, at most two retries, and dead-letter handling for batches;
+- escalate ambiguous or repeatedly failing items to GPT with the original
+  input, attempts, validation evidence, and failure reason;
+- stop automatically when the ticket's error, cost, or latency limit is hit.
+
+Before context or quota is exhausted, record the current item ID, checkpoint,
+attempt count, validation status, remaining work, and next prompt in the linked
+GitHub Issue or the configured runtime state store.
+
+Do not merge Pull Requests. Fable provides the final advisory verdict.

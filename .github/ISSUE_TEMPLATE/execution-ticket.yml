@@ -1,0 +1,62 @@
+name: Routed execution ticket
+description: One approved, verifiable execution slice routed to GPT or GLM.
+title: "Execute: "
+body:
+  - type: input
+    id: spec
+    attributes:
+      label: Parent specification
+      placeholder: "#123"
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: What to deliver
+      description: One end-to-end outcome.
+    validations:
+      required: true
+  - type: dropdown
+    id: profile
+    attributes:
+      label: Assigned profile
+      options:
+        - GPT 5.6 SOL
+        - GLM 5.2
+    validations:
+      required: true
+  - type: textarea
+    id: routing
+    attributes:
+      label: Routing rationale
+      description: Complexity, impact, verification cost, and why the cheaper profile is safe or unsafe.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: "- [ ] Observable criterion"
+    validations:
+      required: true
+  - type: textarea
+    id: proof
+    attributes:
+      label: Proof
+      description: Exact automated or manual checks.
+    validations:
+      required: true
+  - type: textarea
+    id: blocked_by
+    attributes:
+      label: Blocked by
+      description: Link blockers or write None.
+    validations:
+      required: true
+  - type: textarea
+    id: escalation
+    attributes:
+      label: Escalate when
+      description: Conditions that promote GLM work to GPT or return a decision to Fable.
+    validations:
+      required: true

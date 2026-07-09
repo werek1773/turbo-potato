@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Workflow documentation
+    url: https://github.com/werek1773/turbo-potato
+    about: Read the repository workflow before starting a large initiative.
