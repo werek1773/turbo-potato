@@ -1,0 +1,25 @@
+# Secrets and credentials — never store API keys, tokens, or passwords in this repository.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets.json
+credentials.json
+
+# Local agent runtime state (checkpoints, dead-letter queues, metrics) — keep ephemerals out of Git.
+.codex/local/
+.claude/local/
+.agents/local/
+checkpoints/
+dead-letter/
+metrics/
+
+# OS / editor noise.
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.swp
+.vscode/
+.idea/
