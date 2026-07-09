@@ -45,6 +45,7 @@ Repozytorium zawiera również automatyczne instrukcje dla narzędzi:
 
 - `CLAUDE.md` ustawia Fable jako planistę i advisora w Claude Code;
 - `.clinerules` ustawia GLM jako taniego wykonawcę w panelu Cline w VS Code;
+- `.codex/config.toml` wybiera GPT-5.6 Sol z wysokim poziomem rozumowania;
 - `AGENTS.md` jest wspólnym kontraktem dla wszystkich środowisk.
 
 ## Inspiracja i modyfikacje
