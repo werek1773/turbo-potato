@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fable To Spec"
+  short_description: "Turn decisions into an approved specification"
+  default_prompt: "Use $fable-to-spec to convert the resolved plan into an execution-ready spec."

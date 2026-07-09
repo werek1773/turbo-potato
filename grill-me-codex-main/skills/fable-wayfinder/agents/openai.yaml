@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fable Wayfinder"
+  short_description: "Plan large work as GitHub decision maps"
+  default_prompt: "Use $fable-wayfinder to plan this initiative before any model starts coding."

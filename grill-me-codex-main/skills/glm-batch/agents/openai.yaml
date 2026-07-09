@@ -1,0 +1,4 @@
+interface:
+  display_name: "GLM Batch"
+  short_description: "Process cheap low-risk tasks at scale"
+  default_prompt: "Use $glm-batch to execute this validated batch of repetitive low-risk tasks."
