@@ -1,6 +1,8 @@
 # Plan: aplikacja do boulderingu (MVP dla Volt Łódź)
-_Ustalone w trakcie „grillowania” — Claude + właściciel projektu, 2026-09-30.
-Runda 1 recenzji krytycznej wprowadzona (patrz `PLAN-REVIEW-LOG.md`)._
+_Uzgodnione z właścicielem projektu, 2026-09-30._
+
+**Ustalenia bazowe:** bundle ID `wspinaczka.app` · minimalna wersja **iOS 26** (funkcje iOS 27 za `#available`) ·
+skala Volta: **liczby 1–9** · UI po polsku (przygotowane pod tłumaczenia).
 
 ## Cel
 
@@ -22,7 +24,7 @@ a nie logowanie w trakcie. Nie ma przycisku „Próba” ani „Start sesji”.
 
 | Warstwa | Wybór |
 |---|---|
-| Aplikacja | Swift 6 (strict concurrency), SwiftUI (Liquid Glass); deployment target **do potwierdzenia: iOS 26 (rekomendacja) lub 27**, funkcje iOS 27 za `#available`; lokalnie: **outbox** oczekujących zapisów (Codable) + cache — idempotentne upserty |
+| Aplikacja | Swift 6 (strict concurrency), SwiftUI (Liquid Glass); deployment target **iOS 26**, funkcje iOS 27 za `#available`; bundle ID `wspinaczka.app`; lokalnie: **outbox** oczekujących zapisów (Codable) + cache — idempotentne upserty |
 | Backend | **Supabase (region UE)**: Postgres + Row Level Security, Auth (Sign in with Apple), Storage (zdjęcia sektorów), **Edge Functions** (wymiana/revoke tokenu Apple, usuwanie konta) |
 | Projekt Xcode | generowany z `project.yml` przez **XcodeGen** (brak ręcznie edytowanego `.pbxproj`) |
 | Logika domenowa | lokalny Swift Package `BoulderKit` bez zależności od UI — testowalny również poza Xcode |
@@ -64,9 +66,9 @@ Odwołania w obrębie ścianki / użytkownika przez **złożone klucze obce** (n
 - `user_consents` — stats_opt_out, health_data_consent (+ daty)
 - `platform_admins` — user_id (bez polityk dla klienta)
 - `gyms` — name, slug, city, **timezone**, lat, lng, geofence_radius_m (min. 150 m), active_grade_scale_id
-- `grade_scales`, `grades` — **własna skala ścianki** (Volt: skala na wzór V-scale):
-  label, sort_order, `v_equivalent` (liczba, do porównań i statystyk), opcjonalny kolor;
-  **wyceny są niezmienne** (tylko dezaktywacja), statystyki liczone po `v_equivalent`
+- `grade_scales`, `grades` — **własna skala ścianki** (Volt: liczby **1–9**, na wzór V-scale):
+  label, sort_order, `v_equivalent` (opcjonalne — potrzebne dopiero do porównań między ściankami), opcjonalny kolor;
+  **wyceny są niezmienne** (tylko dezaktywacja); statystyki w obrębie ścianki po `sort_order`
 - `gym_memberships` — gym_id, user_id, role (`manager` | `routesetter`), granted_by
 - `invites` — gym_id, role, code_hash, created_by, expires_at, max_uses, used_count, revoked_at
 - `sectors` — gym_id, name, sort_order, current_photo_id, last_reset_at, archived_at
@@ -127,7 +129,7 @@ na sektorze — równoległa przykrętka lub dodanie pinezki do starego zdjęcia
 1. **Logowanie** — Sign in with Apple → profil → wybór ścianki (Volt).
 2. **Katalog** — lista sektorów ze zdjęciami i pinezkami; filtry łączone: wycena/zakres,
    sektor, kolor, „niezrobione przeze mnie”, „nowe od mojej ostatniej wizyty”;
-   licznik pokrycia („V4: 7 z 12 aktywnych”).
+   licznik pokrycia („4: 7 z 12 aktywnych”).
 3. **Podsumuj sesję** (główny ekran) — zdjęcia sektorów, tap na pinezkę cyklicznie:
    brak → top → flash → projekt; na górze nowe problemy i typowy zakres wycen;
    dla projektów tagi „co zatrzymało”; na końcu energia, RPE, skóra, ból. Cel < 60 s.
@@ -205,11 +207,8 @@ PLAN.md
 
 ## Ryzyka / otwarte kwestie
 
-- **Brak Xcode w środowisku Claude** — błędy kompilacji wychodzą dopiero w CI/na Macu;
-  runner GitHub może nie mieć jeszcze Xcode 27 (wtedy CI na najnowszym dostępnym, iOS 27 API za `#available`).
-- **Nowości iOS 27** mogą być słabo znane Claude — preferowane stabilne API z iOS 26.
-- **Deployment target iOS 27** wymaga SDK Xcode 27 w CI i wyklucza klientów bez aktualizacji —
-  rekomendacja: target iOS 26, funkcje iOS 27 za `#available` (decyzja właściciela).
+- **Brak Xcode w środowisku Claude** — błędy kompilacji wychodzą dopiero w CI/na Macu.
+- **Nowości iOS 27** mogą być słabo znane Claude — bazą są stabilne API z iOS 26.
 - **Geofence w budynku jest nieprecyzyjny** (opóźnione/zaszumione wyjścia) — stąd odszumianie
   i ręczna ścieżka jako pełnoprawna.
 - **Zgoda „Zawsze” na lokalizację** — część osób odmówi; ręczne podsumowanie musi być równie wygodne.
@@ -219,8 +218,8 @@ PLAN.md
   prawdopodobnie ocena skutków (DPIA) dla danych zdrowotnych, umowa powierzenia z Supabase,
   zgoda Volta na publikację zdjęć ściany; zdjęcia bez klientów na ścianie.
 - **Plan Supabase** — darmowy plan wystarcza do testów; przed klientami rozważyć płatny (backupy, brak pauzowania).
-- Do ustalenia: **nazwa aplikacji i bundle ID**, **pełna skala wycen Volta**, lista sektorów,
-  współrzędne Volta, język UI (propozycja: polski, przygotowany pod tłumaczenia).
+- Do ustalenia: **który projekt Supabase** (istniejący „Wspinaczka” ma już schemat i dane innej wersji
+  aplikacji), wyświetlana nazwa aplikacji, sektory Volta (zdjęcia od właściciela), współrzędne Volta.
 
 ## Poza zakresem MVP
 
