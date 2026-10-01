@@ -66,6 +66,22 @@ final class GymCatalog {
 
     var areas: [SectorArea] { Sector.groupedByArea(sectors) }
 
+    var today: LocalDate { ClimbingDay.today(in: gym.timeZone) }
+
+    var upcomingResets: [UpcomingReset] {
+        Resets.upcoming(sectors: sectors, problems: problems,
+                        toppedProblemIds: toppedProblemIds, today: today)
+    }
+
+    func upcomingReset(for sector: Sector) -> UpcomingReset? {
+        upcomingResets.first { $0.sector.id == sector.id }
+    }
+
+    func setNextReset(for sector: Sector, on date: LocalDate?) async throws {
+        try await backend.setNextReset(sectorId: sector.id, on: date)
+        try await load()
+    }
+
     /// Appends a sector at the end of the walking order.
     func addSector(named name: String, area: String) async throws {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -154,3 +154,38 @@ extension Sector {
         return areas
     }
 }
+
+/// An announced reset coming up soon, with what I still have to do there.
+public struct UpcomingReset: Hashable, Sendable, Identifiable {
+    public let sector: Sector
+    public let date: LocalDate
+    /// 0 = today, 1 = tomorrow.
+    public let daysLeft: Int
+    public let activeProblems: Int
+    public let notTopped: Int
+
+    public var id: UUID { sector.id }
+}
+
+public enum Resets {
+    public static func upcoming(
+        sectors: [Sector],
+        problems: [ActiveProblem],
+        toppedProblemIds: Set<UUID>,
+        today: LocalDate,
+        withinDays: Int = 7
+    ) -> [UpcomingReset] {
+        let bySector = Dictionary(grouping: problems, by: \.sectorId)
+        return sectors
+            .compactMap { sector -> UpcomingReset? in
+                guard let date = sector.nextResetOn else { return nil }
+                let daysLeft = today.days(until: date)
+                guard (0...withinDays).contains(daysLeft) else { return nil }
+                let set = bySector[sector.id] ?? []
+                let notTopped = set.filter { !toppedProblemIds.contains($0.id) }.count
+                return UpcomingReset(sector: sector, date: date, daysLeft: daysLeft,
+                                     activeProblems: set.count, notTopped: notTopped)
+            }
+            .sorted { ($0.daysLeft, $0.sector.sortOrder) < ($1.daysLeft, $1.sector.sortOrder) }
+    }
+}

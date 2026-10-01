@@ -44,5 +44,6 @@ enum UserFacingError {
         "flash_not_first_attempt": "Flash jest możliwy tylko przy pierwszej próbie.",
         "health_consent_required": "Najpierw włącz zapisywanie samopoczucia w Profilu.",
         "cannot_restore": "Tego problemu nie da się przywrócić po przykrętce.",
+        "date_in_past": "Data przykrętki nie może być w przeszłości.",
     ]
 }

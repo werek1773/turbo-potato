@@ -8,6 +8,9 @@ struct SectorCard: View {
     let problems: [ActiveProblem]
     let highlighted: Set<UUID>
     let topped: Set<UUID>
+    var upcomingReset: UpcomingReset?
+    /// Shown to staff: announce or change the next reset date.
+    var onPlanReset: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -16,6 +19,22 @@ struct SectorCard: View {
                 Spacer()
                 Text("\(problems.count) problemów")
                     .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                if let onPlanReset {
+                    Menu {
+                        Button("Data następnej przykrętki", systemImage: "calendar.badge.clock", action: onPlanReset)
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.title3)
+                    }
+                    .accessibilityLabel("Opcje sektora")
+                }
+            }
+            if let upcomingReset {
+                ResetBadge(reset: upcomingReset)
+            } else if let next = sector.nextResetOn {
+                Label("Przykrętka \(ResetBadge.dayText(next))", systemImage: "calendar")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
             if let photo {

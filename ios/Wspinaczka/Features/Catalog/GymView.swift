@@ -7,6 +7,7 @@ struct GymView: View {
     @State private var isAddingSector = false
     @State private var newSectorName = ""
     @State private var newSectorArea = ""
+    @State private var plannedSector: Sector?
 
     init(gym: Gym) {
         _catalog = State(initialValue: GymCatalog(gym: gym, backend: Backend.shared))
@@ -15,6 +16,9 @@ struct GymView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 20) {
+                if !catalog.upcomingResets.isEmpty {
+                    UpcomingResetsBanner(resets: catalog.upcomingResets)
+                }
                 if !catalog.coverage.isEmpty {
                     GradeFilterBar(catalog: catalog)
                 }
@@ -30,7 +34,11 @@ struct GymView: View {
                             photo: sector.currentPhotoId.flatMap { catalog.photos[$0] },
                             problems: catalog.problems(in: sector),
                             highlighted: catalog.visibleProblemIds,
-                            topped: catalog.toppedProblemIds
+                            topped: catalog.toppedProblemIds,
+                            upcomingReset: catalog.upcomingReset(for: sector),
+                            onPlanReset: app.access.isStaff(of: catalog.gym.id)
+                                ? { plannedSector = sector }
+                                : nil
                         )
                     }
                 }
@@ -69,6 +77,17 @@ struct GymView: View {
             Button("Anuluj", role: .cancel) { newSectorName = "" }
         } message: {
             Text("Sektor trafi na koniec trasy po ściance.")
+        }
+        .sheet(item: $plannedSector) { sector in
+            NextResetSheet(sector: sector, timeZone: catalog.gym.timeZone) { date in
+                do {
+                    try await catalog.setNextReset(for: sector, on: date)
+                    return true
+                } catch {
+                    app.report(error)
+                    return false
+                }
+            }
         }
         .task { await reload() }
         .refreshable { await reload() }

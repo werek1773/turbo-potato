@@ -86,4 +86,28 @@ struct CatalogTests {
         #expect(areas[0].sectors.map(\.name) == ["Slab", "Pion"])
         #expect(areas[1].sectors.map(\.name) == ["Połóg", "Trójkąt"])
     }
+
+    @Test func upcomingResetsCountWhatIsLeftToDo() {
+        let polog = Sector(id: UUID(), gymId: gym, name: "Połóg", sortOrder: 5, nextResetOn: LocalDate("2026-10-02"))
+        let dach = Sector(id: UUID(), gymId: gym, name: "Dach", sortOrder: 12, nextResetOn: LocalDate("2026-10-20"))
+        let slab = Sector(id: UUID(), gymId: gym, name: "Slab", sortOrder: 1, nextResetOn: LocalDate("2026-09-30"))
+        let done = problem(grade: 4, sector: polog.id, color: .red)
+        let open = problem(grade: 5, sector: polog.id, color: .blue)
+        let upcoming = Resets.upcoming(
+            sectors: [polog, dach, slab],
+            problems: [done, open],
+            toppedProblemIds: [done.id],
+            today: LocalDate("2026-10-01")!
+        )
+        #expect(upcoming.map(\.sector.name) == ["Połóg"])
+        #expect(upcoming[0].daysLeft == 1)
+        #expect(upcoming[0].activeProblems == 2 && upcoming[0].notTopped == 1)
+    }
+
+    @Test func daysBetweenLocalDates() {
+        #expect(LocalDate("2026-10-01")!.days(until: LocalDate("2026-10-02")!) == 1)
+        #expect(LocalDate("2026-10-25")!.days(until: LocalDate("2026-10-26")!) == 1)  // DST change
+        #expect(LocalDate("2026-10-02")!.days(until: LocalDate("2026-10-01")!) == -1)
+    }
 }
+

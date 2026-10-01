@@ -62,10 +62,13 @@ public struct Sector: Identifiable, Hashable, Codable, Sendable {
     public var sortOrder: Int
     public var currentPhotoId: UUID?
     public var lastResetAt: Date?
+    /// Announced date of the next reset ("przykrętka").
+    public var nextResetOn: LocalDate?
     public var archivedAt: Date?
 
     public init(id: UUID, gymId: UUID, name: String, area: String? = nil, sortOrder: Int,
-                currentPhotoId: UUID? = nil, lastResetAt: Date? = nil, archivedAt: Date? = nil) {
+                currentPhotoId: UUID? = nil, lastResetAt: Date? = nil,
+                nextResetOn: LocalDate? = nil, archivedAt: Date? = nil) {
         self.id = id
         self.gymId = gymId
         self.name = name
@@ -73,6 +76,7 @@ public struct Sector: Identifiable, Hashable, Codable, Sendable {
         self.sortOrder = sortOrder
         self.currentPhotoId = currentPhotoId
         self.lastResetAt = lastResetAt
+        self.nextResetOn = nextResetOn
         self.archivedAt = archivedAt
     }
 
@@ -82,6 +86,7 @@ public struct Sector: Identifiable, Hashable, Codable, Sendable {
         case sortOrder = "sort_order"
         case currentPhotoId = "current_photo_id"
         case lastResetAt = "last_reset_at"
+        case nextResetOn = "next_reset_on"
         case archivedAt = "archived_at"
     }
 }
