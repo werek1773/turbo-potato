@@ -90,7 +90,7 @@ struct GymView: View {
                 withAnimation(.snappy) { selection = sector.id }
             }
             if !catalog.coverage.isEmpty {
-                GradeFilterBar(catalog: catalog)
+                GradeRow(catalog: catalog)
             }
             if let plan = catalog.gym.floorPlan {
                 GymMapView(
@@ -113,9 +113,9 @@ struct GymView: View {
                         removal: .opacity
                     ))
                 } else if !catalog.sectors.isEmpty {
-                    Label("Dotknij ściany", systemImage: "hand.tap")
+                    Text("Dotknij ściany, żeby zobaczyć jej problemy.")
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Palette.muted)
                         .frame(maxWidth: .infinity)
                         .transition(.opacity)
                 }
@@ -135,7 +135,9 @@ struct GymView: View {
     }
 }
 
-/// Name, address and what matters today: the next reset and new problems.
+/// The gym's name and one sentence on what matters today: the next reset
+/// and what is new since the last visit. Both are links: the reset shows its
+/// wall on the map, the new problems filter the map.
 private struct GymHeader: View {
     @Bindable var catalog: GymCatalog
     let onShowSector: (Sector) -> Void
@@ -146,71 +148,129 @@ private struct GymHeader: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                if let address = catalog.gym.address {
-                    Text([catalog.gym.city, address].compactMap { $0 }.joined(separator: " · "))
-                        .font(.subheadline)
-                        .foregroundStyle(Palette.muted)
-                }
-                Text(catalog.gym.name)
-                    .font(.display(.largeTitle))
-                    .foregroundStyle(Palette.ink)
+        VStack(alignment: .leading, spacing: 8) {
+            Text(catalog.gym.name)
+                .font(.display(.largeTitle))
+                .foregroundStyle(Palette.ink)
+            if let sentence {
+                Text(sentence)
+                    .font(.body)
+                    .foregroundStyle(Palette.muted)
+                    .tint(Palette.mossDark)
+                    .environment(\.openURL, OpenURLAction { url in
+                        handle(url)
+                        return .handled
+                    })
             }
-            HStack(spacing: 8) {
-                if let reset = catalog.upcomingResets.first {
-                    Tile(title: "Przykrętka",
-                         value: "\(reset.sector.name) · \(ResetBadge.relative(reset.daysLeft, date: reset.date))",
-                         valueColor: Palette.mustardText, isOn: false) {
-                        onShowSector(reset.sector)
-                    }
-                } else {
-                    Tile(title: "Przykrętka", value: "Brak zapowiedzi", valueColor: Palette.muted, isOn: false, action: nil)
-                }
-                if let newCount = newSinceVisit, let lastVisit = catalog.lastVisit {
-                    Tile(title: "Nowe od ostatniej wizyty",
-                         value: newCount == 1 ? "1 problem" : "\(newCount) problemów",
-                         valueColor: Palette.ink, isOn: catalog.filter.setAfter != nil) {
-                        catalog.filter.setAfter = catalog.filter.setAfter == nil ? lastVisit : nil
-                    }
-                } else {
-                    Tile(title: "Na ścianach", value: "\(catalog.problems.count) problemów",
-                         valueColor: Palette.ink, isOn: false, action: nil)
-                }
-            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var sentence: AttributedString? {
+        var parts: [AttributedString] = []
+        if let reset = catalog.upcomingResets.first {
+            var part = AttributedString("Przykrętka \(ResetBadge.relative(reset.daysLeft, date: reset.date)): ")
+            part += link(reset.sector.name, to: "reset")
+            part += AttributedString(".")
+            parts.append(part)
+        }
+        if let count = newSinceVisit, count > 0 {
+            var part = link(Self.newProblems(count), to: "new")
+            part += AttributedString(" od Twojej ostatniej wizyty.")
+            parts.append(part)
+        }
+        guard !parts.isEmpty else { return nil }
+        return parts.dropFirst().reduce(parts[0]) { $0 + AttributedString(" ") + $1 }
+    }
+
+    private func link(_ text: String, to target: String) -> AttributedString {
+        var part = AttributedString(text)
+        part.link = URL(string: "wspinaczka-gym://\(target)")
+        part.inlinePresentationIntent = .stronglyEmphasized
+        return part
+    }
+
+    private func handle(_ url: URL) {
+        switch url.host() {
+        case "reset":
+            if let sector = catalog.upcomingResets.first?.sector { onShowSector(sector) }
+        case "new":
+            catalog.filter.gradeOrders = nil
+            catalog.filter.setAfter = catalog.filter.setAfter == nil ? catalog.lastVisit : nil
+        default:
+            break
         }
     }
 
-    private struct Tile: View {
-        let title: String
-        let value: String
-        let valueColor: Color
-        let isOn: Bool
-        let action: (() -> Void)?
+    /// "1 nowy", "3 nowe", "7 nowych".
+    static func newProblems(_ count: Int) -> String {
+        let lastTwo = count % 100, last = count % 10
+        if count == 1 { return "1 nowy problem" }
+        if (2...4).contains(last) && !(12...14).contains(lastTwo) { return "\(count) nowe problemy" }
+        return "\(count) nowych problemów"
+    }
+}
 
-        var body: some View {
-            Button {
-                action?()
-            } label: {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.caption)
-                        .foregroundStyle(Palette.muted)
-                    Text(value)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(valueColor)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+/// Grades as plain numbers; the chosen one gets a pen circle drawn around it.
+struct GradeRow: View {
+    @Bindable var catalog: GymCatalog
+
+    private var grades: [Grade] {
+        catalog.coverage.map(\.grade)
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(grades) { grade in
+                let range = grade.sortOrder...grade.sortOrder
+                let isOn = catalog.filter.gradeOrders == range
+                Button {
+                    catalog.filter.setAfter = nil
+                    catalog.filter.gradeOrders = isOn ? nil : range
+                } label: {
+                    Text(grade.label)
+                        .font(.display(.title3))
+                        .foregroundStyle(Palette.ink)
+                        .frame(width: 34, height: 38)
+                        .background {
+                            if isOn {
+                                PenCircle()
+                                    .frame(width: 46, height: 46)
+                                    .id(grade.id)
+                            }
+                        }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 9)
-                .background(isOn ? Palette.mat : Palette.paper, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(isOn ? Palette.moss : Palette.line))
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
+                .accessibilityLabel("Wycena \(grade.label)")
+                .accessibilityAddTraits(isOn ? .isSelected : [])
             }
-            .buttonStyle(.plain)
-            .disabled(action == nil)
         }
+        .sensoryFeedback(.selection, trigger: catalog.filter.gradeOrders)
+    }
+}
+
+/// A circle drawn around something with a pen, in three strokes at 8 fps.
+struct PenCircle: View {
+    private static let loop = InkPath("M30 9 C20 6 8 11 7 22 C6 33 16 39 25 38 C35 37 40 29 38 19 C36 11 28 7 20 9")
+
+    @State private var start = Date()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        TimelineView(.periodic(from: start, by: 1 / StopMotion.fps)) { timeline in
+            let frame = reduceMotion ? 3 : StopMotion.frame(at: timeline.date, since: start)
+            Canvas { context, size in
+                let scale = min(size.width, size.height) / 44
+                context.scaleBy(x: scale, y: scale)
+                let shown = min(1, CGFloat(frame + 1) / 3)
+                let path = Self.loop.path(frame: reduceMotion ? 0 : frame, boil: 1.2, salt: 77).trimmedPath(from: 0, to: shown)
+                context.stroke(path, with: .color(Palette.moss),
+                               style: StrokeStyle(lineWidth: 2.4, lineCap: .round, lineJoin: .round))
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
@@ -235,7 +295,7 @@ private struct SectorPeekCard: View {
                 if count > 0 {
                     Text("\(topped) z \(count) zrobione")
                         .font(.subheadline.monospacedDigit())
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Palette.muted)
                         .contentTransition(.numericText())
                 }
             }
@@ -258,7 +318,6 @@ private struct SectorPeekCard: View {
             Button("Zobacz problemy", action: onOpen)
                 .buttonStyle(.pill)
         }
-        .paperCard(radius: 24)
     }
 }
 
