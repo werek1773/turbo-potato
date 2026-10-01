@@ -51,3 +51,25 @@ extension Gym {
         [name, city].compactMap { $0 }.joined(separator: " · ")
     }
 }
+
+extension StyleTag {
+    var polishName: String {
+        switch self {
+        case .slab: "płyta"
+        case .vertical: "pion"
+        case .overhang: "przewieszenie"
+        case .roof: "dach"
+        case .crimps: "krawądki"
+        case .slopers: "oblaki"
+        case .pinches: "szczypy"
+        case .pockets: "dziurki"
+        case .jugs: "klamy"
+        case .volumes: "struktury"
+        case .dynamic: "dynamiczny"
+        case .static: "statyczny"
+        case .coordination: "koordynacja"
+        case .compression: "kompresja"
+        case .balance: "balans"
+        }
+    }
+}

@@ -8,9 +8,10 @@ struct SectorCard: View {
     let problems: [ActiveProblem]
     let highlighted: Set<UUID>
     let topped: Set<UUID>
+    var gradeLabels: [UUID: String] = [:]
     var upcomingReset: UpcomingReset?
-    /// Shown to staff: announce or change the next reset date.
-    var onPlanReset: (() -> Void)?
+    /// Shown to managers and routesetters.
+    var staffActions: SectorStaffActions?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -20,9 +21,14 @@ struct SectorCard: View {
                 Text("\(problems.count) problemów")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                if let onPlanReset {
+                if let staffActions {
                     Menu {
-                        Button("Data następnej przykrętki", systemImage: "calendar.badge.clock", action: onPlanReset)
+                        Button(photo == nil ? "Dodaj zdjęcie sektora" : "Przykrętka / nowe zdjęcie",
+                               systemImage: "camera", action: staffActions.newPhoto)
+                        if photo != nil {
+                            Button("Problemy i pinezki", systemImage: "mappin.and.ellipse", action: staffActions.editPins)
+                        }
+                        Button("Data następnej przykrętki", systemImage: "calendar.badge.clock", action: staffActions.planReset)
                     } label: {
                         Image(systemName: "ellipsis.circle")
                             .font(.title3)
@@ -38,7 +44,8 @@ struct SectorCard: View {
                     .foregroundStyle(.secondary)
             }
             if let photo {
-                SectorPhotoView(photo: photo, problems: problems, highlighted: highlighted, topped: topped)
+                SectorPhotoView(photo: photo, problems: problems, highlighted: highlighted, topped: topped,
+                                gradeLabels: gradeLabels)
             } else {
                 RoundedRectangle(cornerRadius: 16)
                     .fill(.quaternary)
@@ -62,6 +69,7 @@ struct SectorPhotoView: View {
     let problems: [ActiveProblem]
     let highlighted: Set<UUID>
     let topped: Set<UUID>
+    var gradeLabels: [UUID: String] = [:]
 
     var body: some View {
         AsyncImage(url: Backend.shared.photoURL(for: photo)) { phase in
@@ -78,6 +86,7 @@ struct SectorPhotoView: View {
                 ForEach(problems) { problem in
                     ProblemPin(
                         color: problem.holdColor,
+                        label: gradeLabels[problem.gradeId],
                         isHighlighted: highlighted.contains(problem.id),
                         isTopped: topped.contains(problem.id)
                     )
@@ -91,23 +100,37 @@ struct SectorPhotoView: View {
 
 struct ProblemPin: View {
     let color: HoldColor
+    /// Grade label shown inside the pin.
+    var label: String?
     var isHighlighted = true
     var isTopped = false
+
+    private var ink: Color { color == .white || color == .yellow ? .black : .white }
 
     var body: some View {
         Circle()
             .fill(color.swatch)
-            .frame(width: 24, height: 24)
-            .overlay(Circle().stroke(.white, lineWidth: 2))
+            .frame(width: 26, height: 26)
+            .overlay(Circle().stroke(isTopped ? Color.green : .white, lineWidth: isTopped ? 3 : 2))
             .overlay {
-                if isTopped {
+                if let label {
+                    Text(label)
+                        .font(.caption.bold())
+                        .foregroundStyle(ink)
+                } else if isTopped {
                     Image(systemName: "checkmark")
                         .font(.caption2.bold())
-                        .foregroundStyle(color == .white || color == .yellow ? .black : .white)
+                        .foregroundStyle(ink)
                 }
             }
             .shadow(radius: 2)
             .opacity(isHighlighted ? 1 : 0.25)
-            .accessibilityLabel("Problem \(color.polishName)\(isTopped ? ", zrobiony" : "")")
+            .accessibilityLabel("Problem \(label.map { "\($0), " } ?? "")\(color.polishName)\(isTopped ? ", zrobiony" : "")")
     }
+}
+
+struct SectorStaffActions {
+    let newPhoto: () -> Void
+    let editPins: () -> Void
+    let planReset: () -> Void
 }

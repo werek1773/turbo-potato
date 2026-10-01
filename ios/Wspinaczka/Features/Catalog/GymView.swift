@@ -8,6 +8,9 @@ struct GymView: View {
     @State private var newSectorName = ""
     @State private var newSectorArea = ""
     @State private var plannedSector: Sector?
+    @State private var photoSector: Sector?
+    @State private var pinEditor: PinEditorTarget?
+    @State private var editorAfterPhoto: UUID?
 
     init(gym: Gym) {
         _catalog = State(initialValue: GymCatalog(gym: gym, backend: Backend.shared))
@@ -35,9 +38,14 @@ struct GymView: View {
                             problems: catalog.problems(in: sector),
                             highlighted: catalog.visibleProblemIds,
                             topped: catalog.toppedProblemIds,
+                            gradeLabels: catalog.gradesById.mapValues(\.label),
                             upcomingReset: catalog.upcomingReset(for: sector),
-                            onPlanReset: app.access.isStaff(of: catalog.gym.id)
-                                ? { plannedSector = sector }
+                            staffActions: app.access.isStaff(of: catalog.gym.id)
+                                ? SectorStaffActions(
+                                    newPhoto: { photoSector = sector },
+                                    editPins: { pinEditor = PinEditorTarget(sectorId: sector.id) },
+                                    planReset: { plannedSector = sector }
+                                )
                                 : nil
                         )
                     }
@@ -89,6 +97,20 @@ struct GymView: View {
                 }
             }
         }
+        .sheet(item: $photoSector, onDismiss: {
+            // Open the pin editor only once the photo sheet is fully gone.
+            if let sectorId = editorAfterPhoto {
+                editorAfterPhoto = nil
+                pinEditor = PinEditorTarget(sectorId: sectorId)
+            }
+        }) { sector in
+            NewSectorPhotoView(catalog: catalog, sector: sector) {
+                editorAfterPhoto = sector.id
+            }
+        }
+        .fullScreenCover(item: $pinEditor) { target in
+            PinEditorView(catalog: catalog, sectorId: target.sectorId)
+        }
         .task { await reload() }
         .refreshable { await reload() }
     }
@@ -135,4 +157,9 @@ struct GradeFilterBar: View {
             }
         }
     }
+}
+
+struct PinEditorTarget: Identifiable {
+    let sectorId: UUID
+    var id: UUID { sectorId }
 }
