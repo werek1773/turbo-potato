@@ -23,50 +23,8 @@ struct GymView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                GymHeader(catalog: catalog) { sector in
-                    withAnimation(.snappy) { selection = sector.id }
-                }
-                if !catalog.coverage.isEmpty {
-                    GradeFilterBar(catalog: catalog)
-                }
-                if let plan = catalog.gym.floorPlan {
-                    GymMapView(
-                        plan: plan,
-                        sectors: catalog.sectors,
-                        style: { catalog.mapStyle(for: $0) },
-                        dots: { catalog.mapDots(for: $0) },
-                        selection: $selection.animation(.snappy)
-                    )
-                    .padding(.vertical, 4)
-
-                    if let sector = selectedSector {
-                        SectorPeekCard(catalog: catalog, sector: sector) {
-                            openSector = SectorRoute(id: sector.id)
-                        }
-                        .matchedTransitionSource(id: sector.id, in: zoom)
-                        .id(sector.id)
-                        .transition(.asymmetric(
-                            insertion: .move(edge: .bottom).combined(with: .opacity),
-                            removal: .opacity
-                        ))
-                    } else if !catalog.sectors.isEmpty {
-                        Label("Dotknij ściany", systemImage: "hand.tap")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity)
-                            .transition(.opacity)
-                    }
-                    DisclosureGroup("Wszystkie sektory") {
-                        SectorList(catalog: catalog) { openSector = SectorRoute(id: $0.id) }
-                            .padding(.top, 8)
-                    }
-                    .tint(Palette.ink)
-                } else {
-                    SectorList(catalog: catalog) { openSector = SectorRoute(id: $0.id) }
-                }
-            }
-            .padding()
+            content
+                .padding()
         }
         .canvasBackground()
         .overlay {
@@ -98,9 +56,11 @@ struct GymView: View {
             // The header below shows the name; the bar keeps only actions.
             ToolbarItem(placement: .principal) { EmptyView() }
             if app.access.isManager(of: catalog.gym.id) {
-                Button("Dodaj sektor", systemImage: "plus") {
-                    newSectorArea = catalog.areas.last?.name ?? ""
-                    isAddingSector = true
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Dodaj sektor", systemImage: "plus") {
+                        newSectorArea = catalog.areas.last?.name ?? ""
+                        isAddingSector = true
+                    }
                 }
             }
         }
@@ -121,6 +81,53 @@ struct GymView: View {
         }
         .task { await reload() }
         .refreshable { await reload() }
+    }
+
+
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            GymHeader(catalog: catalog) { sector in
+                withAnimation(.snappy) { selection = sector.id }
+            }
+            if !catalog.coverage.isEmpty {
+                GradeFilterBar(catalog: catalog)
+            }
+            if let plan = catalog.gym.floorPlan {
+                GymMapView(
+                    plan: plan,
+                    sectors: catalog.sectors,
+                    style: { catalog.mapStyle(for: $0) },
+                    dots: { catalog.mapDots(for: $0) },
+                    selection: $selection.animation(.snappy)
+                )
+                .padding(.vertical, 4)
+
+                if let sector = selectedSector {
+                    SectorPeekCard(catalog: catalog, sector: sector) {
+                        openSector = SectorRoute(id: sector.id)
+                    }
+                    .matchedTransitionSource(id: sector.id, in: zoom)
+                    .id(sector.id)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .bottom).combined(with: .opacity),
+                        removal: .opacity
+                    ))
+                } else if !catalog.sectors.isEmpty {
+                    Label("Dotknij ściany", systemImage: "hand.tap")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .transition(.opacity)
+                }
+                DisclosureGroup("Wszystkie sektory") {
+                    SectorList(catalog: catalog) { openSector = SectorRoute(id: $0.id) }
+                        .padding(.top, 8)
+                }
+                .tint(Palette.ink)
+            } else {
+                SectorList(catalog: catalog) { openSector = SectorRoute(id: $0.id) }
+            }
+        }
     }
 
     private func reload() async {
