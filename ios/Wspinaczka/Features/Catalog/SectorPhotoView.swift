@@ -2,68 +2,6 @@ import BoulderKit
 import SwiftUI
 
 /// A sector photo with a colored pin for every active problem.
-struct SectorCard: View {
-    let sector: Sector
-    let photo: SectorPhoto?
-    let problems: [ActiveProblem]
-    let highlighted: Set<UUID>
-    let topped: Set<UUID>
-    var gradeLabels: [UUID: String] = [:]
-    var upcomingReset: UpcomingReset?
-    /// Shown to managers and routesetters.
-    var staffActions: SectorStaffActions?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(sector.name).font(.title3.bold())
-                Spacer()
-                Text("\(problems.count) problemów")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                if let staffActions {
-                    Menu {
-                        Button(photo == nil ? "Dodaj zdjęcie sektora" : "Przykrętka / nowe zdjęcie",
-                               systemImage: "camera", action: staffActions.newPhoto)
-                        if photo != nil {
-                            Button("Problemy i pinezki", systemImage: "mappin.and.ellipse", action: staffActions.editPins)
-                        }
-                        Button("Data następnej przykrętki", systemImage: "calendar.badge.clock", action: staffActions.planReset)
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .font(.title3)
-                    }
-                    .accessibilityLabel("Opcje sektora")
-                }
-            }
-            if let upcomingReset {
-                ResetBadge(reset: upcomingReset)
-            } else if let next = sector.nextResetOn {
-                Label("Przykrętka \(ResetBadge.dayText(next))", systemImage: "calendar")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            if let photo {
-                SectorPhotoView(photo: photo, problems: problems, highlighted: highlighted, topped: topped,
-                                gradeLabels: gradeLabels)
-            } else {
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(.quaternary)
-                    .aspectRatio(4 / 3, contentMode: .fit)
-                    .overlay {
-                        Label("Brak zdjęcia sektora", systemImage: "camera")
-                            .foregroundStyle(.secondary)
-                    }
-            }
-            if let lastReset = sector.lastResetAt {
-                Text("Przykrętka: \(lastReset.formatted(date: .abbreviated, time: .omitted))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-}
-
 struct SectorPhotoView: View {
     let photo: SectorPhoto
     let problems: [ActiveProblem]
@@ -140,10 +78,4 @@ struct ProblemPin: View {
             .opacity(isHighlighted || sessionResult != nil ? 1 : 0.25)
             .accessibilityLabel("Problem \(label.map { "\($0), " } ?? "")\(color.polishName)\(isTopped ? ", zrobiony" : "")")
     }
-}
-
-struct SectorStaffActions {
-    let newPhoto: () -> Void
-    let editPins: () -> Void
-    let planReset: () -> Void
 }
