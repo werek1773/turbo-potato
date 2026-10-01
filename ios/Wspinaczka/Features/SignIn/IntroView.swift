@@ -84,16 +84,13 @@ private struct PageDots: View {
     }
 }
 
-/// Drawn icon and title at the top of every intro page.
+/// Title (and a sentence) at the top of every intro page; the demo below is the picture.
 private struct PageHeader: View {
-    let icon: Pictogram.Kind
     let title: String
     var detail: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Pictogram(kind: icon, size: 30)
-                .padding(.bottom, 2)
             Text(title)
                 .font(.display(.title))
                 .foregroundStyle(Palette.ink)
@@ -115,7 +112,7 @@ private struct MapPage: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            PageHeader(icon: .map, title: "Każdy problem na ścianie. Na jednej mapie.")
+            PageHeader(title: "Każdy problem na ścianie. Na jednej mapie.")
             Spacer(minLength: 0)
             if isActive {
                 DemoMap(grade: nil)
@@ -126,7 +123,7 @@ private struct MapPage: View {
                 .foregroundStyle(Palette.muted)
         }
         .padding(.horizontal, 24)
-        .padding(.top, 24)
+        .padding(.top, 36)
     }
 }
 
@@ -136,7 +133,7 @@ private struct FilterPage: View {
 
     var body: some View {
         VStack(spacing: 14) {
-            PageHeader(icon: .filter, title: "Chcesz same 4-ki? Jedno dotknięcie.")
+            PageHeader(title: "Chcesz same 4-ki? Jedno dotknięcie.")
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
                     GradeChip(label: "Wszystkie", isOn: grade == nil) { grade = nil }
@@ -153,7 +150,7 @@ private struct FilterPage: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 24)
-        .padding(.top, 24)
+        .padding(.top, 36)
         .task(id: isActive) {
             guard isActive else { return }
             grade = nil
@@ -202,7 +199,7 @@ private struct SessionPage: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            PageHeader(icon: .chalkBag, title: "Telefon zostaje w torbie.",
+            PageHeader(title: "Telefon zostaje w torbie.",
                        detail: "Po wyjściu stukasz w pinezki: raz top, dwa razy flash.")
             Spacer(minLength: 0)
             if isActive {
@@ -211,7 +208,7 @@ private struct SessionPage: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 24)
-        .padding(.top, 24)
+        .padding(.top, 36)
     }
 }
 
@@ -361,7 +358,7 @@ private struct ProgressPage: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            PageHeader(icon: .top, title: "Twoja piramida",
+            PageHeader(title: "Twoja piramida",
                        detail: "Zrobione na każdej wycenie od ostatniej przykrętki.")
             Spacer(minLength: 0)
             if isActive {
@@ -376,7 +373,7 @@ private struct ProgressPage: View {
             }
         }
         .padding(.horizontal, 24)
-        .padding(.top, 24)
+        .padding(.top, 36)
     }
 }
 
