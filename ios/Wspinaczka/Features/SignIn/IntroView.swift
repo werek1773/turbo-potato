@@ -11,16 +11,15 @@ struct IntroView: View {
     @State private var isShowingTestSignIn = false
     #endif
 
-    private let pageCount = 5
+    private let pageCount = 4
 
     var body: some View {
         VStack(spacing: 16) {
             TabView(selection: $page) {
-                MapPage(isActive: page == 0).tag(0)
-                FilterPage(isActive: page == 1).tag(1)
-                SessionPage(isActive: page == 2).tag(2)
-                ProgressPage(isActive: page == 3).tag(3)
-                ReadyPage(isActive: page == 4).tag(4)
+                FilterPage(isActive: page == 0).tag(0)
+                SessionPage(isActive: page == 1).tag(1)
+                ProgressPage(isActive: page == 2).tag(2)
+                ReadyPage(isActive: page == 3).tag(3)
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .animation(.smooth, value: page)
@@ -106,26 +105,6 @@ private struct PageHeader: View {
 }
 
 // MARK: - Pages
-
-private struct MapPage: View {
-    let isActive: Bool
-
-    var body: some View {
-        VStack(spacing: 16) {
-            PageHeader(title: "Każdy problem na ścianie. Na jednej mapie.")
-            Spacer(minLength: 0)
-            if isActive {
-                DemoMap(grade: nil)
-            }
-            Spacer(minLength: 0)
-            Text("Tak wygląda Volt Łódź. Kropki to problemy w kolorach chwytów.")
-                .font(.footnote)
-                .foregroundStyle(Palette.muted)
-        }
-        .padding(.horizontal, 24)
-        .padding(.top, 36)
-    }
-}
 
 private struct FilterPage: View {
     let isActive: Bool
