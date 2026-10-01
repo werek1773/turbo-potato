@@ -109,7 +109,7 @@ struct InkPath: Sendable {
 enum Drawing: Sendable {
     /// A hand gripping a hold on the wall: launch, sign-in, loading.
     case grip
-    /// A chalk bucket on a belt, chalk rising: empty states.
+    /// A hand dipped into a chalk bag, chalk rising: empty states.
     case chalk
     /// A boulder with a flag on top: done, ready.
     case top
@@ -153,14 +153,21 @@ enum Drawing: Sendable {
     ]
 
     private static let chalkParts: [Part] = [
-        Part(kind: .fill(InkPath("M33 52 C32 66 33 78 37 83 C45 87 55 87 63 83 C67 78 68 66 67 52 C58 56 42 56 33 52 Z"), alternate: nil, color: Palette.mustard)),
-        Part(kind: .fill(InkPath("M33 48 C40 44 60 44 67 48 C60 52 40 52 33 48 Z"), alternate: nil, color: Color(hex: 0xF1EEDF))),
-        Part(kind: .stroke(InkPath("M31 49 C30 64 31 79 35 85 C44 90 56 90 65 85 C69 79 70 64 69 49"), steps: 1)),
-        Part(kind: .stroke(InkPath("M30 48 C38 42 62 42 70 48 C62 54 38 54 30 48 Z"), steps: 1)),
-        Part(kind: .stroke(InkPath("M12 66 C28 70 72 70 88 66"), steps: 1)),
-        Part(kind: .stroke(InkPath("M64 52 C67 57 65 60 68 63"), steps: 1)),
-        Part(kind: .puff([CGPoint(x: 44, y: 34), CGPoint(x: 52, y: 28), CGPoint(x: 58, y: 35),
-                          CGPoint(x: 48, y: 22), CGPoint(x: 40, y: 26), CGPoint(x: 60, y: 24)])),
+        Part(kind: .fill(InkPath("M31 48 C29 60 27 74 30 83 C32 88 40 90 51 90 C62 90 70 88 72 83 C75 74 73 60 71 48 C64 52 38 52 31 48 Z"), alternate: nil, color: Palette.coral)),
+        Part(kind: .fill(InkPath("M28 47 C29 40 73 40 74 47 C73 54 29 54 28 47 Z"), alternate: nil, color: Color(hex: 0xF1EEDF))),
+        Part(kind: .stroke(InkPath("M31 48 C29 60 27 74 30 83 C32 88 40 90 51 90 C62 90 70 88 72 83 C75 74 73 60 71 48"), steps: 1)),
+        Part(kind: .stroke(InkPath("M28 47 C29 40 73 40 74 47 C73 54 29 54 28 47 Z"), steps: 1)),
+        Part(kind: .stroke(InkPath("M34 74 C36 79 35 83 33 86"), steps: 1)),
+        Part(kind: .stroke(InkPath("M66 78 C64 82 65 85 67 87"), steps: 1)),
+        Part(kind: .stroke(InkPath("M12 6 C20 18 28 30 36 41"), steps: 1)),
+        Part(kind: .stroke(InkPath("M28 3 C34 15 42 26 50 37"), steps: 1)),
+        Part(kind: .stroke(InkPath("M36 41 C37 37 41 36 43 39 C44 35 48 35 50 38 C51 35 55 36 55 40 C56 42 55 44 53 45"), steps: 1)),
+        Part(kind: .stroke(InkPath("M30 50 C24 53 24 59 21 63"), steps: 1)),
+        Part(kind: .dots([CGPoint(x: 20.5, y: 65.5)], radii: [2.4], inked: true)),
+        Part(kind: .stroke(InkPath("M20 68 C19 71 21 73 20 76"), steps: 1)),
+        Part(kind: .dots([CGPoint(x: 24, y: 22), CGPoint(x: 30, y: 14), CGPoint(x: 40, y: 30)], radii: [1.3, 1, 1.2], inked: false)),
+        Part(kind: .puff([CGPoint(x: 58, y: 32), CGPoint(x: 64, y: 26), CGPoint(x: 52, y: 26),
+                          CGPoint(x: 68, y: 34), CGPoint(x: 60, y: 18), CGPoint(x: 48, y: 30)])),
     ]
 
     private static let topParts: [Part] = [
@@ -174,7 +181,7 @@ enum Drawing: Sendable {
     ]
 
     private static let dust = Color(hex: 0xCFCAB8)
-    private static let chalkPuff = Color(hex: 0xD8D4C4)
+    private static let chalkPuff = Color(hex: 0xC9C4B2)
 
     /// Draws one frame. `progress` counts frames since drawing-on began.
     func draw(frame: Int, progress: Int, boil: CGFloat, in context: inout GraphicsContext) {
