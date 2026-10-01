@@ -23,7 +23,7 @@ struct AppleCredential: Sendable {
                 let tokenData = credential.identityToken,
                 let idToken = String(data: tokenData, encoding: .utf8)
             else {
-                throw URLError(.userAuthenticationRequired)
+                throw ASAuthorizationError(.invalidResponse)
             }
             let code = credential.authorizationCode.flatMap { String(data: $0, encoding: .utf8) }
             let name = credential.fullName?.formatted(.name(style: .medium))

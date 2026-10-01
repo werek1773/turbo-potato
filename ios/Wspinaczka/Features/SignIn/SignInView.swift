@@ -2,6 +2,9 @@ import SwiftUI
 
 struct SignInView: View {
     @Environment(AppModel.self) private var app
+    #if DEBUG
+    @State private var isShowingTestSignIn = false
+    #endif
 
     var body: some View {
         VStack(spacing: 24) {
@@ -27,7 +30,16 @@ struct SignInView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
+            #if DEBUG
+            Button("Logowanie testowe") { isShowingTestSignIn = true }
+                .font(.footnote)
+            #endif
         }
         .padding(24)
+        #if DEBUG
+        .sheet(isPresented: $isShowingTestSignIn) {
+            TestSignInView()
+        }
+        #endif
     }
 }

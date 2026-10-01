@@ -1,3 +1,4 @@
+import AuthenticationServices
 import Foundation
 import Supabase
 
@@ -7,10 +8,25 @@ enum UserFacingError {
         if let postgrest = error as? PostgrestError {
             return known[postgrest.message] ?? postgrest.message
         }
+        if let appleError = error as? ASAuthorizationError {
+            return message(for: appleError)
+        }
         if let urlError = error as? URLError, urlError.code == .notConnectedToInternet {
             return "Brak połączenia z internetem."
         }
         return error.localizedDescription
+    }
+
+    private static func message(for error: ASAuthorizationError) -> String {
+        switch error.code {
+        case .unknown:
+            // Raised e.g. when the device has no Apple Account signed in.
+            "Nie udało się zalogować przez Apple. Sprawdź, czy na tym urządzeniu jesteś zalogowany na konto Apple (Ustawienia → Zaloguj się), i spróbuj ponownie."
+        case .notInteractive:
+            "Logowanie przez Apple wymaga potwierdzenia. Spróbuj ponownie."
+        default:
+            "Logowanie przez Apple nie powiodło się. Spróbuj ponownie za chwilę."
+        }
     }
 
     private static let known: [String: String] = [

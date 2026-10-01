@@ -22,6 +22,18 @@ struct Backend: Sendable {
         )
     }
 
+    #if DEBUG
+    /// Debug-only email + password auth for the simulator. Returns false when
+    /// the new account still has to confirm its email before signing in.
+    func signInForTesting(email: String, password: String, createAccount: Bool) async throws -> Bool {
+        if createAccount {
+            return try await client.auth.signUp(email: email, password: password).session != nil
+        }
+        try await client.auth.signIn(email: email, password: password)
+        return true
+    }
+    #endif
+
     func signOut() async throws {
         try await client.auth.signOut()
     }
