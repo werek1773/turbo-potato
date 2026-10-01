@@ -150,25 +150,3 @@ struct Pictogram: View {
         }
     }
 }
-
-/// An entrance on the map: a dark moss disc with a door.
-struct DoorMarker: View {
-    var body: some View {
-        Canvas { context, size in
-            let s = min(size.width, size.height) / 8
-            context.scaleBy(x: s, y: s)
-            context.fill(Path(ellipseIn: CGRect(x: 0.4, y: 0.4, width: 7.2, height: 7.2)), with: .color(Palette.mossDark))
-            var door = Path()
-            door.move(to: CGPoint(x: 2.7, y: 5.9))
-            door.addLine(to: CGPoint(x: 2.7, y: 2.4))
-            door.addQuadCurve(to: CGPoint(x: 3.2, y: 1.9), control: CGPoint(x: 2.7, y: 1.9))
-            door.addLine(to: CGPoint(x: 4.8, y: 1.9))
-            door.addQuadCurve(to: CGPoint(x: 5.3, y: 2.4), control: CGPoint(x: 5.3, y: 1.9))
-            door.addLine(to: CGPoint(x: 5.3, y: 5.9))
-            door.move(to: CGPoint(x: 1.9, y: 5.9))
-            door.addLine(to: CGPoint(x: 6.1, y: 5.9))
-            context.stroke(door, with: .color(Palette.paper), style: StrokeStyle(lineWidth: 0.65, lineCap: .round, lineJoin: .round))
-        }
-        .accessibilityLabel("Wejście")
-    }
-}

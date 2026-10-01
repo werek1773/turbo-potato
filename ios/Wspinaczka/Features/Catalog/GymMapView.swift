@@ -18,9 +18,10 @@ struct MapDot: Identifiable {
     let isMatching: Bool
 }
 
-/// The gym drawn like its reset board, without names: mats, walls in walking
-/// order, every problem as a dot of its hold color, and the doors. Drawing in
-/// and filtering run on the 8 fps clock; selection is smooth.
+/// The gym drawn like its reset board, without names, in the same ink line
+/// as the drawings: mats in light moss, walls drawn in walking order, every
+/// problem as a dot of its hold color, and the doors. The ink boils, draws
+/// in and filters on the 8 fps clock; selection is smooth.
 struct GymMapView: View {
     let plan: FloorPlan
     let sectors: [Sector]
@@ -31,21 +32,16 @@ struct GymMapView: View {
     @State private var drawStart = Date()
     @State private var filterChange = Date.distantPast
     @State private var changedDots: Set<UUID> = []
-    @State private var isTicking = true
-    @State private var tickGeneration = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var mapped: [(sector: Sector, path: [MapPoint])] {
         sectors.compactMap { sector in sector.mapPath.map { (sector, $0) } }
     }
 
-    /// Frames until the last wall is drawn and its dots have settled.
-    private var drawFrames: Int { Int(Double(max(mapped.count - 1, 0)) * 0.9) + 6 }
-
     var body: some View {
         let allDots = mapped.map { (sector: $0.sector, dots: dots($0.sector)) }
         let matching = Set(allDots.flatMap(\.dots).filter(\.isMatching).map(\.id))
-        TimelineView(.animation(minimumInterval: 1 / StopMotion.fps, paused: !isTicking || reduceMotion)) { timeline in
+        TimelineView(.animation(minimumInterval: 1 / StopMotion.fps, paused: reduceMotion)) { timeline in
             let frame = reduceMotion ? 1000 : StopMotion.frame(at: timeline.date, since: drawStart)
             let sinceFilter = StopMotion.frame(at: timeline.date, since: filterChange)
             GeometryReader { proxy in
@@ -61,10 +57,9 @@ struct GymMapView: View {
                     // Climbing wall between sectors (unlabeled on the board): drawn like
                     // the rest of the wall so it never reads as a gap.
                     ForEach(plan.walls.indices, id: \.self) { index in
-                        PlanShape(points: plan.walls[index])
-                            .trim(from: 0, to: frame >= 2 ? 1 : 0)
-                            .stroke(Palette.moss, style: StrokeStyle(lineWidth: 6, lineCap: .round, lineJoin: .round))
-                            .opacity(selection == nil ? 1 : 0.35)
+                        PlanShape(points: plan.walls[index], boilFrame: reduceMotion ? nil : frame, salt: Double(500 + index * 7))
+                            .stroke(Palette.ink, style: StrokeStyle(lineWidth: Self.inkWidth, lineCap: .round, lineJoin: .round))
+                            .opacity(frame < 2 ? 0 : (selection == nil ? 1 : 0.5))
                     }
                     ForEach(Array(allDots.enumerated()), id: \.element.sector.id) { order, item in
                         if let path = item.sector.mapPath {
@@ -73,8 +68,7 @@ struct GymMapView: View {
                         }
                     }
                     ForEach(plan.entrances, id: \.self) { door in
-                        DoorMarker()
-                            .frame(width: 24, height: 24)
+                        Pictogram(kind: .door, size: 26)
                             .position(x: door.x * size.width, y: door.y * size.height)
                     }
                 }
@@ -85,30 +79,17 @@ struct GymMapView: View {
             }
         }
         .aspectRatio(plan.aspect, contentMode: .fit)
-        .onAppear {
-            drawStart = .now
-            tick(for: drawFrames)
-        }
+        .onAppear { drawStart = .now }
         .onChange(of: matching) { old, new in
             changedDots = old.symmetricDifference(new)
             filterChange = .now
-            tick(for: 3)
         }
         .sensoryFeedback(.selection, trigger: selection)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Plan ścianki")
     }
 
-    /// Runs the clock for a few frames, then lets it rest.
-    private func tick(for frames: Int) {
-        tickGeneration += 1
-        let generation = tickGeneration
-        isTicking = true
-        Task {
-            try? await Task.sleep(for: .seconds(Double(frames + 1) / StopMotion.fps))
-            if generation == tickGeneration { isTicking = false }
-        }
-    }
+    private static let inkWidth: CGFloat = 2.4
 
     @ViewBuilder
     private func wall(_ sector: Sector, path: [MapPoint], order: Int, frame: Int) -> some View {
@@ -117,13 +98,22 @@ struct GymMapView: View {
         let isFaded = selection != nil && !isSelected
         // Three frames per wall, each starting a little after the previous one.
         let drawn = min(1, max(0, (Double(frame) - Double(order) * 0.9) / 3))
-        PlanShape(points: path)
-            .trim(from: 0, to: drawn)
-            .stroke(isSelected ? Palette.mossDark : wallStyle.color,
-                    style: StrokeStyle(lineWidth: isSelected ? 10 : 6, lineCap: .round, lineJoin: .round,
-                                       dash: wallStyle.dashed && !isSelected ? [5, 7] : []))
-            .opacity(drawn == 0 ? 0 : (wallStyle.isDimmed || isFaded ? 0.35 : 1))
-            .animation(.snappy, value: selection)
+        let isResetSoon = wallStyle.color == Palette.mustard
+        ZStack {
+            // A wide wash of color under the ink: moss for the chosen wall,
+            // mustard where a reset is coming.
+            PlanShape(points: path)
+                .stroke(isSelected ? Palette.moss : Palette.mustard,
+                        style: StrokeStyle(lineWidth: isSelected ? 12 : 7, lineCap: .round, lineJoin: .round))
+                .opacity(drawn < 1 ? 0 : (isSelected ? 1 : (isResetSoon && !isFaded ? 0.55 : 0)))
+            PlanShape(points: path, boilFrame: reduceMotion ? nil : frame, salt: Double(order * 11))
+                .trim(from: 0, to: drawn)
+                .stroke(Palette.ink,
+                        style: StrokeStyle(lineWidth: Self.inkWidth, lineCap: .round, lineJoin: .round,
+                                           dash: wallStyle.dashed ? [4, 6] : []))
+                .opacity(drawn == 0 ? 0 : (wallStyle.isDimmed ? 0.35 : (isFaded ? 0.5 : 1)))
+        }
+        .animation(.snappy, value: selection)
             .accessibilityElement()
             .accessibilityLabel(sector.name)
             .accessibilityAddTraits(.isButton)
@@ -168,17 +158,24 @@ struct GymMapView: View {
     }
 }
 
-/// A polyline (or closed polygon) of plan points, scaled to the view.
+/// A polyline (or closed polygon) of plan points, scaled to the view. With
+/// `boilFrame`, every point moves a hair per frame, like a redrawn ink line.
 struct PlanShape: Shape {
     let points: [MapPoint]
     var isClosed = false
+    var boilFrame: Int?
+    var salt: Double = 0
 
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        guard let first = points.first else { return path }
-        path.move(to: CGPoint(x: rect.minX + first.x * rect.width, y: rect.minY + first.y * rect.height))
-        for point in points.dropFirst() {
-            path.addLine(to: CGPoint(x: rect.minX + point.x * rect.width, y: rect.minY + point.y * rect.height))
+        for (index, point) in points.enumerated() {
+            var scaled = CGPoint(x: rect.minX + point.x * rect.width, y: rect.minY + point.y * rect.height)
+            if let frame = boilFrame {
+                let i = Double(index)
+                scaled.x += (Wobble.noise(Double(frame) * 31 + i * 7 + salt) - 0.5) * 2
+                scaled.y += (Wobble.noise(Double(frame) * 57 + i * 13 + salt) - 0.5) * 2
+            }
+            if index == 0 { path.move(to: scaled) } else { path.addLine(to: scaled) }
         }
         if isClosed { path.closeSubpath() }
         return path

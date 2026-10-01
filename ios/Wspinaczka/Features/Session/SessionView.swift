@@ -64,7 +64,7 @@ struct SessionDayView: View {
                 DayHeader(log: log)
 
                 if !catalog.coverage.isEmpty {
-                    GradeFilterBar(catalog: catalog)
+                    GradeRow(catalog: catalog)
                 }
 
                 Text("Dotknij pinezki: Top → Flash → Projekt → nic. Przytrzymaj, aby dodać szczegóły.")

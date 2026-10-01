@@ -1,9 +1,11 @@
 -- Volt Boulderownia Łódź: floor plan transcribed from its "Tablica przekrętek".
 -- Data only (not a migration): run against a project that already has Volt.
 -- Coordinates are 0..1; sector paths run so the floor lies on their right.
+-- The two narrow stretches of the small room's wall (between Pion and 3°,
+-- and between 3° and 15°) are sectors of their own, so they get problems.
 update public.gyms set floor_plan = '{
   "aspect": 0.7547,
-  "walls": [[[0.36,0.0283],[0.4537,0.0283]], [[0.5875,0.034],[0.645,0.0368]]],
+  "walls": [],
   "outlines": [],
   "mats": [
     [[0.04,0.0396],[0.0813,0.0283],[0.215,0.0283],[0.36,0.0283],[0.4537,0.0283],[0.5875,0.034],[0.645,0.0368],[0.9513,0.0443],[0.935,0.1698],[0.0537,0.1509]],
@@ -20,7 +22,9 @@ from public.gyms g,
   (values
     ('Slab',              '[[0.04,0.0396],[0.0813,0.0283],[0.215,0.0283]]'),
     ('Pion',              '[[0.215,0.0283],[0.36,0.0283]]'),
+    ('Między Pionem a 3°', '[[0.36,0.0283],[0.4537,0.0283]]'),
     ('3°',                '[[0.4537,0.0283],[0.5875,0.034]]'),
+    ('Między 3° a 15°',   '[[0.5875,0.034],[0.645,0.0368]]'),
     ('15°',               '[[0.645,0.0368],[0.9513,0.0443]]'),
     ('Połóg',             '[[0.3999,0.8793],[0.1937,0.8793]]'),
     ('Trójkąt',           '[[0.1937,0.8793],[0.075,0.8085]]'),
