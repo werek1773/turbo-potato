@@ -54,6 +54,7 @@ struct SectorDetailView: View {
                 .padding()
             }
         }
+        .canvasBackground()
         .navigationTitle(sector?.name ?? "")
         .toolbar {
             if isStaff, let sector {

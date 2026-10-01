@@ -24,6 +24,7 @@ struct SessionView: View {
                     )
                 }
             }
+            .canvasBackground()
             .navigationTitle("Sesja")
             .toolbar {
                 if app.gyms.count > 1 {

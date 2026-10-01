@@ -7,35 +7,44 @@ struct SignInView: View {
     #endif
 
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 0) {
             Spacer()
-            Image(systemName: "mountain.2.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(.tint)
-            VStack(spacing: 8) {
-                Text("Wspinaczka")
-                    .font(.largeTitle.bold())
-                Text("Problemy Twojej ścianki, podsumowanie sesji w minutę i postępy, które widać.")
-                    .font(.body)
+            VStack(spacing: 18) {
+                HoldMark(motion: .breathing)
+                    .frame(width: 64)
+                    .rise()
+                Text("Wspinaj się.\nResztę zapiszemy.")
+                    .font(.serif(.largeTitle))
+                    .multilineTextAlignment(.center)
+                    .rise(0.12)
+                Text("Problemy Twojej ścianki na mapie, a sesja podsumowana po wyjściu.")
+                    .font(.serif(.body))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+                    .rise(0.24)
             }
             Spacer()
-            AppleSignInButton { credential in
-                Task { await app.signIn(with: credential) }
-            } onError: { error in
-                app.report(error)
+            VStack(spacing: 14) {
+                AppleSignInButton(label: .continue) { credential in
+                    Task { await app.signIn(with: credential) }
+                } onError: { error in
+                    app.report(error)
+                }
+                .clipShape(Capsule())
+                .rise(0.38)
+                Text("Twoje przejścia i samopoczucie widzisz tylko Ty.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .rise(0.48)
+                #if DEBUG
+                Button("Logowanie testowe") { isShowingTestSignIn = true }
+                    .font(.footnote)
+                #endif
             }
-            Text("Logując się, akceptujesz zasady prywatności. Twoje przejścia i samopoczucie widzisz tylko Ty.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-            #if DEBUG
-            Button("Logowanie testowe") { isShowingTestSignIn = true }
-                .font(.footnote)
-            #endif
         }
         .padding(24)
+        .background(Palette.canvas.ignoresSafeArea())
         #if DEBUG
         .sheet(isPresented: $isShowingTestSignIn) {
             TestSignInView()

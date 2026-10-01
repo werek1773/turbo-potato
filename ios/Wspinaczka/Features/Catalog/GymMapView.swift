@@ -6,45 +6,70 @@ struct SectorMapStyle {
     var color: Color
     var dashed = false
     var isDimmed = false
-    var badge: String?
 }
 
-/// The gym drawn like its reset board. Tap a wall to open its sector.
+/// One problem standing at its wall, in the color of its holds.
+struct MapDot: Identifiable {
+    let id: UUID
+    /// Position along the wall, 0 = left edge of the sector photo.
+    let fraction: Double
+    let color: HoldColor
+    let isTopped: Bool
+    let isMatching: Bool
+}
+
+/// The gym drawn like its reset board, without names: mats, walls in walking
+/// order, every problem as a dot of its hold color, and the doors.
 struct GymMapView: View {
     let plan: FloorPlan
     let sectors: [Sector]
     let style: (Sector) -> SectorMapStyle
-    let onSelect: (Sector) -> Void
+    let dots: (Sector) -> [MapDot]
+    @Binding var selection: UUID?
 
-    private let wallWidth: CGFloat = 7
+    @State private var isDrawn = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var mapped: [(sector: Sector, path: [MapPoint])] {
+        sectors.compactMap { sector in sector.mapPath.map { (sector, $0) } }
+    }
 
     var body: some View {
         GeometryReader { proxy in
             let size = proxy.size
-            ZStack {
-                Canvas { context, size in
-                    draw(into: &context, size: size)
+            ZStack(alignment: .topLeading) {
+                ForEach(plan.mats.indices, id: \.self) { index in
+                    PlanShape(points: plan.mats[index], isClosed: true)
+                        .fill(Palette.mat)
+                        .opacity(isDrawn ? 1 : 0)
+                        .animation(.easeOut(duration: 0.5), value: isDrawn)
                 }
-                // Sector names, placed at the middle of each wall.
-                ForEach(sectors.filter { $0.mapPath != nil }) { sector in
-                    if let path = sector.mapPath, let mid = PlanGeometry.midpoint(of: path) {
-                        let sectorStyle = style(sector)
-                        Text(sectorStyle.badge.map { "\(sector.name) · \($0)" } ?? sector.name)
-                            .font(.caption2.weight(.semibold))
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 2)
-                            .background(.background.opacity(0.85), in: Capsule())
-                            .opacity(sectorStyle.isDimmed ? 0.45 : 1)
-                            .position(labelPosition(for: mid, in: size))
-                            .allowsHitTesting(false)
-                    }
+                ForEach(plan.outlines.indices, id: \.self) { index in
+                    PlanShape(points: plan.outlines[index])
+                        .stroke(Palette.line, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
                 }
-                ForEach(plan.labels, id: \.self) { label in
-                    Text(label.text)
-                        .font(.headline)
-                        .foregroundStyle(.secondary)
-                        .position(x: label.x * size.width, y: label.y * size.height)
-                        .allowsHitTesting(false)
+                ForEach(plan.walls.indices, id: \.self) { index in
+                    PlanShape(points: plan.walls[index])
+                        .stroke(Palette.line, style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
+                }
+                ForEach(Array(mapped.enumerated()), id: \.element.sector.id) { order, item in
+                    wall(item.sector, path: item.path, order: order)
+                    holds(item.sector, path: item.path, order: order, size: size)
+                }
+                ForEach(plan.entrances, id: \.self) { door in
+                    Circle()
+                        .fill(Palette.door)
+                        .frame(width: 22, height: 22)
+                        .overlay {
+                            Image(systemName: "door.left.hand.open")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+                        .scaleEffect(isDrawn ? 1 : 0.2)
+                        .opacity(isDrawn ? 1 : 0)
+                        .animation(.spring(duration: 0.5, bounce: 0.5), value: isDrawn)
+                        .position(x: door.x * size.width, y: door.y * size.height)
+                        .accessibilityLabel("Wejście")
                 }
             }
             .contentShape(Rectangle())
@@ -53,63 +78,103 @@ struct GymMapView: View {
             }
         }
         .aspectRatio(plan.aspect, contentMode: .fit)
+        .onAppear { isDrawn = true }
+        .sensoryFeedback(.selection, trigger: selection)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Mapa ścianki")
+        .accessibilityLabel("Plan ścianki")
     }
 
-    private func scaled(_ points: [MapPoint], _ size: CGSize) -> [CGPoint] {
-        points.map { CGPoint(x: $0.x * size.width, y: $0.y * size.height) }
+    @ViewBuilder
+    private func wall(_ sector: Sector, path: [MapPoint], order: Int) -> some View {
+        let wallStyle = style(sector)
+        let isSelected = selection == sector.id
+        let isFaded = selection != nil && !isSelected
+        PlanShape(points: path)
+            .trim(from: 0, to: isDrawn ? 1 : 0)
+            .stroke(isSelected ? Palette.olive : wallStyle.color,
+                    style: StrokeStyle(lineWidth: isSelected ? 10 : 6, lineCap: .round, lineJoin: .round,
+                                       dash: wallStyle.dashed && !isSelected ? [5, 7] : []))
+            .opacity(wallStyle.isDimmed || isFaded ? 0.35 : 1)
+            .animation(.easeOut(duration: 0.4).delay(reduceMotion ? 0 : 0.15 + Double(order) * 0.08), value: isDrawn)
+            .animation(.snappy, value: selection)
+            .accessibilityElement()
+            .accessibilityLabel(sector.name)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { selection = sector.id }
     }
 
-    private func polyline(_ points: [CGPoint]) -> Path {
-        var path = Path()
-        guard let first = points.first else { return path }
-        path.move(to: first)
-        points.dropFirst().forEach { path.addLine(to: $0) }
-        return path
-    }
-
-    private func draw(into context: inout GraphicsContext, size: CGSize) {
-        for outline in plan.outlines {
-            context.stroke(polyline(scaled(outline, size)), with: .color(.secondary.opacity(0.35)),
-                           style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
-        }
-        for wall in plan.walls {
-            context.stroke(polyline(scaled(wall, size)), with: .color(.secondary.opacity(0.5)),
-                           style: StrokeStyle(lineWidth: wallWidth, lineCap: .round, lineJoin: .round))
-        }
-        for sector in sectors {
-            guard let points = sector.mapPath else { continue }
-            let sectorStyle = style(sector)
-            let path = polyline(scaled(points, size))
-            context.stroke(path, with: .color(sectorStyle.color.opacity(sectorStyle.isDimmed ? 0.3 : 1)),
-                           style: StrokeStyle(lineWidth: wallWidth, lineCap: .round, lineJoin: .round,
-                                              dash: sectorStyle.dashed ? [8, 6] : []))
-            // Dots at sector boundaries, like on the board.
-            for point in [scaled(points, size).first, scaled(points, size).last].compactMap({ $0 }) {
-                context.fill(Path(ellipseIn: CGRect(x: point.x - 5, y: point.y - 5, width: 10, height: 10)),
-                             with: .color(.primary.opacity(0.7)))
+    private func holds(_ sector: Sector, path: [MapPoint], order: Int, size: CGSize) -> some View {
+        let scaled = path.map { MapPoint(x: $0.x * size.width, y: $0.y * size.height) }
+        let offset = 11.0
+        return ForEach(dots(sector)) { dot in
+            if let spot = PlanGeometry.point(along: scaled, at: dot.fraction) {
+                Circle()
+                    .fill(dot.color.swatch)
+                    .frame(width: 8, height: 8)
+                    .overlay {
+                        Circle().stroke(dot.isTopped ? Palette.ink : Palette.ink.opacity(dot.color == .white ? 0.3 : 0),
+                                        lineWidth: dot.isTopped ? 1.8 : 0.6)
+                            .padding(dot.isTopped ? -1.5 : 0)
+                    }
+                    .scaleEffect(isDrawn ? (dot.isMatching ? 1 : 0.5) : 0)
+                    .opacity(dot.isMatching ? 1 : 0.12)
+                    .animation(.spring(duration: 0.45, bounce: 0.55)
+                        .delay(reduceMotion ? 0 : 0.35 + Double(order) * 0.08 + dot.fraction * 0.2), value: isDrawn)
+                    .animation(.smooth, value: dot.isMatching)
+                    .position(x: spot.point.x + spot.normal.x * offset, y: spot.point.y + spot.normal.y * offset)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
             }
         }
     }
 
-    /// Labels sit slightly towards the center of the plan so they do not hide the wall.
-    private func labelPosition(for mid: MapPoint, in size: CGSize) -> CGPoint {
-        let point = CGPoint(x: mid.x * size.width, y: mid.y * size.height)
-        let center = CGPoint(x: size.width / 2, y: size.height / 2)
-        let dx = center.x - point.x, dy = center.y - point.y
-        let length = max(hypot(dx, dy), 1)
-        return CGPoint(x: point.x + dx / length * 22, y: point.y + dy / length * 22)
-    }
-
     private func select(at location: CGPoint, size: CGSize) {
-        let paths = sectors.compactMap { sector -> (id: UUID, points: [MapPoint])? in
-            guard let points = sector.mapPath else { return nil }
-            return (sector.id, points.map { MapPoint(x: $0.x * size.width, y: $0.y * size.height) })
+        let paths = mapped.map { item in
+            (id: item.sector.id, points: item.path.map { MapPoint(x: $0.x * size.width, y: $0.y * size.height) })
         }
-        if let id = PlanGeometry.nearest(to: MapPoint(x: location.x, y: location.y), among: paths, maxDistance: 28),
-           let sector = sectors.first(where: { $0.id == id }) {
-            onSelect(sector)
+        let hit = PlanGeometry.nearest(to: MapPoint(x: location.x, y: location.y), among: paths, maxDistance: 30)
+        selection = hit == selection ? nil : hit
+    }
+}
+
+/// A polyline (or closed polygon) of plan points, scaled to the view.
+struct PlanShape: Shape {
+    let points: [MapPoint]
+    var isClosed = false
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        guard let first = points.first else { return path }
+        path.move(to: CGPoint(x: rect.minX + first.x * rect.width, y: rect.minY + first.y * rect.height))
+        for point in points.dropFirst() {
+            path.addLine(to: CGPoint(x: rect.minX + point.x * rect.width, y: rect.minY + point.y * rect.height))
         }
+        if isClosed { path.closeSubpath() }
+        return path
+    }
+}
+
+/// The plan alone, drawing itself in: used on gym cards.
+struct MiniMapView: View {
+    let plan: FloorPlan
+    let paths: [[MapPoint]]
+
+    @State private var isDrawn = false
+
+    var body: some View {
+        ZStack {
+            ForEach(plan.mats.indices, id: \.self) { index in
+                PlanShape(points: plan.mats[index], isClosed: true).fill(Palette.mat)
+            }
+            ForEach(paths.indices, id: \.self) { index in
+                PlanShape(points: paths[index])
+                    .trim(from: 0, to: isDrawn ? 1 : 0)
+                    .stroke(Palette.chartreuse, style: StrokeStyle(lineWidth: 3.5, lineCap: .round, lineJoin: .round))
+                    .animation(.easeOut(duration: 0.35).delay(0.2 + Double(index) * 0.06), value: isDrawn)
+            }
+        }
+        .aspectRatio(plan.aspect, contentMode: .fit)
+        .onAppear { isDrawn = true }
+        .accessibilityHidden(true)
     }
 }

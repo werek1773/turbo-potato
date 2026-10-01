@@ -24,7 +24,7 @@ public struct MapPoint: Hashable, Sendable, Codable {
     }
 }
 
-/// The gym drawn like its own reset board: rooms, walls and labels.
+/// The gym drawn like its own reset board: mats, walls and entrances.
 public struct FloorPlan: Hashable, Sendable, Codable {
     public struct Label: Hashable, Sendable, Codable {
         public let text: String
@@ -38,17 +38,24 @@ public struct FloorPlan: Hashable, Sendable, Codable {
     public let walls: [[MapPoint]]
     /// Floor edges and room boundaries, drawn faintly.
     public let outlines: [[MapPoint]]
+    /// Closed polygons of matted floor under the walls, filled softly.
+    public let mats: [[MapPoint]]
+    /// Doors, drawn as green dots like on the reset board.
+    public let entrances: [MapPoint]
     public let labels: [Label]
 
-    public init(aspect: Double, walls: [[MapPoint]] = [], outlines: [[MapPoint]] = [], labels: [Label] = []) {
+    public init(aspect: Double, walls: [[MapPoint]] = [], outlines: [[MapPoint]] = [],
+                mats: [[MapPoint]] = [], entrances: [MapPoint] = [], labels: [Label] = []) {
         self.aspect = aspect
         self.walls = walls
         self.outlines = outlines
+        self.mats = mats
+        self.entrances = entrances
         self.labels = labels
     }
 
     enum CodingKeys: String, CodingKey {
-        case aspect, walls, outlines, labels
+        case aspect, walls, outlines, mats, entrances, labels
     }
 
     public init(from decoder: Decoder) throws {
@@ -56,6 +63,8 @@ public struct FloorPlan: Hashable, Sendable, Codable {
         aspect = try container.decode(Double.self, forKey: .aspect)
         walls = try container.decodeIfPresent([[MapPoint]].self, forKey: .walls) ?? []
         outlines = try container.decodeIfPresent([[MapPoint]].self, forKey: .outlines) ?? []
+        mats = try container.decodeIfPresent([[MapPoint]].self, forKey: .mats) ?? []
+        entrances = try container.decodeIfPresent([MapPoint].self, forKey: .entrances) ?? []
         labels = try container.decodeIfPresent([Label].self, forKey: .labels) ?? []
     }
 }
@@ -90,6 +99,29 @@ public enum PlanGeometry {
             .filter { $0.distance <= maxDistance }
             .min { $0.distance < $1.distance }?
             .id
+    }
+
+    /// A point at `fraction` (0...1) of the polyline's length, with the unit
+    /// normal pointing to the right of the walking direction. Sector paths
+    /// run so that the floor is on their right: a photo's left edge is the
+    /// path's start, so a pin's x maps straight onto the fraction.
+    public static func point(along polyline: [MapPoint], at fraction: Double) -> (point: MapPoint, normal: MapPoint)? {
+        let segments = zip(polyline, polyline.dropFirst())
+            .map { (a: $0, b: $1, length: hypot($1.x - $0.x, $1.y - $0.y)) }
+            .filter { $0.length > 0 }
+        guard !segments.isEmpty else { return nil }
+        var remaining = max(0, min(1, fraction)) * segments.reduce(0) { $0 + $1.length }
+        for (index, segment) in segments.enumerated() {
+            if remaining <= segment.length || index == segments.count - 1 {
+                let t = min(1, remaining / segment.length)
+                let dx = (segment.b.x - segment.a.x) / segment.length
+                let dy = (segment.b.y - segment.a.y) / segment.length
+                return (MapPoint(x: segment.a.x + dx * segment.length * t, y: segment.a.y + dy * segment.length * t),
+                        MapPoint(x: -dy, y: dx))
+            }
+            remaining -= segment.length
+        }
+        return nil
     }
 
     /// Midpoint along the polyline's length (for labels).

@@ -58,6 +58,7 @@ struct ProfileView: View {
                     Button("Usuń konto", role: .destructive) { isDeletingAccount = true }
                 }
             }
+            .canvasBackground()
             .navigationTitle("Profil")
             .onAppear { displayName = app.profile?.displayName ?? "" }
             .onChange(of: app.profile?.displayName) { _, name in displayName = name ?? "" }

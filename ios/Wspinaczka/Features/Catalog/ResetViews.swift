@@ -12,7 +12,7 @@ struct ResetBadge: View {
             Image(systemName: "arrow.triangle.2.circlepath")
         }
         .font(.subheadline.weight(.semibold))
-        .foregroundStyle(reset.daysLeft <= 2 ? .orange : .secondary)
+        .foregroundStyle(reset.daysLeft <= 2 ? Palette.mustard : .secondary)
     }
 
     private var text: String {
@@ -50,7 +50,7 @@ struct UpcomingResetsBanner: View {
                     Text(reset.sector.name).fontWeight(.medium)
                     Spacer()
                     Text(ResetBadge.relative(reset.daysLeft, date: reset.date))
-                        .foregroundStyle(reset.daysLeft <= 2 ? .orange : .secondary)
+                        .foregroundStyle(reset.daysLeft <= 2 ? Palette.mustard : .secondary)
                     if reset.notTopped > 0 {
                         Text("· \(reset.notTopped) do zrobienia")
                             .foregroundStyle(.secondary)
