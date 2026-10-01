@@ -1,7 +1,7 @@
 # Plan: aplikacja do boulderingu (MVP dla Volt Łódź)
 _Uzgodnione z właścicielem projektu, 2026-09-30._
 
-**Ustalenia bazowe:** bundle ID `wspinaczka.app` · minimalna wersja **iOS 26** (funkcje iOS 27 za `#available`) ·
+**Ustalenia bazowe:** Supabase: projekt **„Wspinaczka 2”** (`afmppshzdkljlgzokdam`, Frankfurt) · bundle ID `wspinaczka.app` · minimalna wersja **iOS 26** (funkcje iOS 27 za `#available`) ·
 skala Volta: **liczby 1–9** · UI po polsku (przygotowane pod tłumaczenia).
 
 ## Cel
@@ -218,8 +218,7 @@ PLAN.md
   prawdopodobnie ocena skutków (DPIA) dla danych zdrowotnych, umowa powierzenia z Supabase,
   zgoda Volta na publikację zdjęć ściany; zdjęcia bez klientów na ścianie.
 - **Plan Supabase** — darmowy plan wystarcza do testów; przed klientami rozważyć płatny (backupy, brak pauzowania).
-- Do ustalenia: **który projekt Supabase** (istniejący „Wspinaczka” ma już schemat i dane innej wersji
-  aplikacji), wyświetlana nazwa aplikacji, sektory Volta (zdjęcia od właściciela), współrzędne Volta.
+- Do ustalenia: wyświetlana nazwa aplikacji, sektory Volta (zdjęcia od właściciela).
 
 ## Poza zakresem MVP
 
