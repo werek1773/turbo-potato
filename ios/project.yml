@@ -1,0 +1,59 @@
+# Generate the Xcode project with:  xcodegen generate   (brew install xcodegen)
+name: Wspinaczka
+options:
+  bundleIdPrefix: app.wspinaczka
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+configFiles:
+  Debug: Config/Base.xcconfig
+  Release: Config/Base.xcconfig
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+packages:
+  Supabase:
+    url: https://github.com/supabase/supabase-swift
+    from: "2.30.0"
+  BoulderKit:
+    path: Packages/BoulderKit
+targets:
+  Wspinaczka:
+    type: application
+    platform: iOS
+    scheme: {}
+    sources:
+      - path: Wspinaczka
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: wspinaczka.app
+        PRODUCT_NAME: Wspinaczka
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Wspinaczka
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.sports
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+    info:
+      path: Wspinaczka/Info.plist
+      properties:
+        CFBundleDevelopmentRegion: pl
+        ITSAppUsesNonExemptEncryption: false
+        CFBundleURLTypes:
+          - CFBundleURLName: wspinaczka.app.invite
+            CFBundleURLSchemes: [wspinaczka]
+    entitlements:
+      path: Wspinaczka/Wspinaczka.entitlements
+      properties:
+        com.apple.developer.applesignin: [Default]
+    dependencies:
+      - package: Supabase
+        product: Supabase
+      - package: BoulderKit
+        product: BoulderKit

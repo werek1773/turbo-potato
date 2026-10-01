@@ -1,0 +1,44 @@
+name: Backend
+
+on:
+  push:
+    paths:
+      - "supabase/**"
+      - "scripts/local-db/**"
+      - ".github/workflows/backend.yml"
+  pull_request:
+    paths:
+      - "supabase/**"
+      - "scripts/local-db/**"
+      - ".github/workflows/backend.yml"
+
+jobs:
+  # Full Supabase stack (real auth/storage schemas) in Docker.
+  supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start database
+        run: supabase db start
+      - name: Lint migrations
+        run: supabase db lint --level warning
+      - name: pgTAP tests
+        run: supabase test db
+
+  # Same tests against plain Postgres + a small Supabase shim (no Docker),
+  # identical to what runs in development containers.
+  plain-postgres:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pgTAP
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q postgresql-16-pgtap libtap-parser-sourcehandler-pgtap-perl
+      - name: Migrations + pgTAP tests
+        env:
+          PGBIN: /usr/lib/postgresql/16/bin
+        run: scripts/local-db/test.sh
