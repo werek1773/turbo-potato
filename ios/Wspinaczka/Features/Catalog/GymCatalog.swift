@@ -7,7 +7,7 @@ import Observation
 @Observable
 final class GymCatalog {
     let gym: Gym
-    private let backend: Backend
+    let backend: Backend
 
     private(set) var grades: [Grade] = []
     private(set) var sectors: [Sector] = []
