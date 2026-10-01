@@ -23,6 +23,11 @@ enum Palette {
     static let mustardText = Color(hex: 0xA97C14)
     static let plum = Color(hex: 0x6A3357)
     static let coral = Color(hex: 0xE2725B)
+    /// Lifted tints of the room colors for the drawn icons, so they read
+    /// cheerful at 18 pt; white glyphs on them keep at least 3:1.
+    static let leaf = Color(hex: 0x7A9A34)
+    static let sun = Color(hex: 0xF2B531)
+    static let berry = Color(hex: 0x9E4780)
 }
 
 extension Color {
