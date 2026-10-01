@@ -295,7 +295,7 @@ struct PyramidView: View {
             let box = InkPath("M\(x0) \(y0) L\(x0 + width) \(y0) L\(x0 + width) \(y1) L\(x0) \(y1) Z")
             context.stroke(box.path(frame: frame, boil: 0.7, salt: Double(k * 17)), with: .color(Palette.ink),
                            style: StrokeStyle(lineWidth: 1.1, lineJoin: .round))
-            context.draw(Text(level.label).font(.system(size: 6.4, weight: .heavy).width(.expanded)).foregroundStyle(Palette.ink),
+            context.draw(Text(level.label).font(.system(size: 6.4, weight: .heavy, design: .rounded)).foregroundStyle(Palette.ink),
                          at: CGPoint(x: x0 - 3, y: y0 + rowHeight / 2), anchor: .trailing)
             context.draw(Text("\(level.topped)/\(level.active)").font(.system(size: 5)).foregroundStyle(Palette.muted),
                          at: CGPoint(x: x0 + width + 3, y: y0 + rowHeight / 2), anchor: .leading)

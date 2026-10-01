@@ -34,9 +34,10 @@ extension Color {
 }
 
 extension Font {
-    /// Wide, bold face for titles and numbers: sporty, like gym signage.
+    /// Rounded, bold face for titles and numbers: soft ends like the ink
+    /// line of the drawings and the holds themselves.
     static func display(_ style: Font.TextStyle) -> Font {
-        .system(style, weight: .bold).width(.expanded)
+        .system(style, design: .rounded, weight: .bold)
     }
 }
 
