@@ -1,7 +1,9 @@
 import SwiftUI
 
 /// The app's drawn icons: one hand, a rounded ink line and flat fills from
-/// the palette, on a 24×24 grid.
+/// the palette, on a 24×24 grid. Color only where it means what the palette
+/// says (moss top, coral flash, plum project, mustard reset); the door, lock
+/// and bucket stay neutral. The three results are discs of one size.
 struct Pictogram: View {
     enum Kind {
         case door, flash, top, project, chalkBag, lock, reset, map, filter
@@ -53,7 +55,7 @@ struct Pictogram: View {
             frame.addLine(to: CGPoint(x: 15.8, y: 3.5))
             frame.addQuadCurve(to: CGPoint(x: 17, y: 4.8), control: CGPoint(x: 17, y: 3.5))
             frame.addLine(to: CGPoint(x: 17, y: 20.5))
-            outline(frame, fill: Palette.mossLight, in: &context)
+            outline(frame, fill: Palette.paper, in: &context)
             var leaf = Path()
             leaf.addLines([CGPoint(x: 7, y: 20.5), CGPoint(x: 12.2, y: 18.9), CGPoint(x: 12.2, y: 5.3), CGPoint(x: 7, y: 3.9)])
             leaf.closeSubpath()
@@ -64,11 +66,14 @@ struct Pictogram: View {
             floor.addLine(to: CGPoint(x: 20, y: 20.5))
             context.stroke(floor, with: .color(ink), style: line)
         case .flash:
+            // Same disc as top and project, so the three results weigh the same.
+            outline(circle(12, 12, 8.6), fill: Palette.coral, in: &context)
             var bolt = Path()
-            bolt.addLines([CGPoint(x: 13.4, y: 2.8), CGPoint(x: 5.8, y: 13.2), CGPoint(x: 10.9, y: 13.2),
-                           CGPoint(x: 9.7, y: 21.2), CGPoint(x: 17.6, y: 10.3), CGPoint(x: 12.4, y: 10.3)])
+            bolt.addLines([CGPoint(x: 12.9, y: 6.9), CGPoint(x: 8.8, y: 12.7), CGPoint(x: 11.6, y: 12.7),
+                           CGPoint(x: 10.9, y: 17.1), CGPoint(x: 15.2, y: 11.1), CGPoint(x: 12.4, y: 11.1)])
             bolt.closeSubpath()
-            outline(bolt, fill: Palette.coral, in: &context)
+            context.fill(bolt, with: .color(Palette.paper))
+            context.stroke(bolt, with: .color(Palette.paper), style: StrokeStyle(lineWidth: 0.9, lineJoin: .round))
         case .top:
             outline(circle(12, 12, 8.6), fill: Palette.moss, in: &context)
             var check = Path()
@@ -79,35 +84,40 @@ struct Pictogram: View {
             context.fill(rightHalf(12, 12, 8.6), with: .color(Palette.plum))
             context.stroke(circle(12, 12, 8.6), with: .color(ink), style: line)
         case .chalkBag:
+            // A floor bucket with chalk heaped over the rim.
+            var heap = Path()
+            heap.move(to: CGPoint(x: 7.4, y: 9))
+            heap.addCurve(to: CGPoint(x: 11, y: 6.4), control1: CGPoint(x: 7.6, y: 6.6), control2: CGPoint(x: 9.4, y: 5.6))
+            heap.addCurve(to: CGPoint(x: 15.4, y: 6.4), control1: CGPoint(x: 11.9, y: 4.9), control2: CGPoint(x: 14.3, y: 4.7))
+            heap.addCurve(to: CGPoint(x: 16.6, y: 9), control1: CGPoint(x: 16.6, y: 6.6), control2: CGPoint(x: 17, y: 7.8))
+            outline(heap, fill: Palette.paper, in: &context)
             var bag = Path()
-            bag.move(to: CGPoint(x: 6.2, y: 8.6))
-            bag.addLine(to: CGPoint(x: 17.8, y: 8.6))
-            bag.addLine(to: CGPoint(x: 16.8, y: 18.7))
-            bag.addQuadCurve(to: CGPoint(x: 14.8, y: 20.5), control: CGPoint(x: 16.6, y: 20.5))
-            bag.addLine(to: CGPoint(x: 9.2, y: 20.5))
-            bag.addQuadCurve(to: CGPoint(x: 7.2, y: 18.7), control: CGPoint(x: 7.4, y: 20.5))
+            bag.move(to: CGPoint(x: 6.2, y: 9))
+            bag.addLine(to: CGPoint(x: 17.8, y: 9))
+            bag.addLine(to: CGPoint(x: 16.8, y: 19.1))
+            bag.addQuadCurve(to: CGPoint(x: 14.8, y: 20.9), control: CGPoint(x: 16.6, y: 20.9))
+            bag.addLine(to: CGPoint(x: 9.2, y: 20.9))
+            bag.addQuadCurve(to: CGPoint(x: 7.2, y: 19.1), control: CGPoint(x: 7.4, y: 20.9))
             bag.closeSubpath()
-            outline(bag, fill: Palette.mustard, in: &context)
+            outline(bag, fill: Palette.mat, in: &context)
             var rim = Path()
-            rim.move(to: CGPoint(x: 5.4, y: 8.6))
-            rim.addLine(to: CGPoint(x: 18.6, y: 8.6))
+            rim.move(to: CGPoint(x: 5.4, y: 9))
+            rim.addLine(to: CGPoint(x: 18.6, y: 9))
             context.stroke(rim, with: .color(ink), style: line)
-            for (x, y, r) in [(9.4, 5.2, 1.4), (12.6, 4.0, 1.1), (14.9, 6.0, 1.3)] as [(CGFloat, CGFloat, CGFloat)] {
-                context.fill(circle(x, y, r), with: .color(Palette.line))
-            }
         case .lock:
-            outline(Path(roundedRect: CGRect(x: 5.2, y: 10.4, width: 13.6, height: 10), cornerRadius: 2.4),
-                    fill: Palette.moss, in: &context)
+            outline(Path(roundedRect: CGRect(x: 5.2, y: 10, width: 13.6, height: 10), cornerRadius: 2.4),
+                    fill: Palette.mat, in: &context)
             var shackle = Path()
-            shackle.move(to: CGPoint(x: 8.4, y: 10.4))
-            shackle.addLine(to: CGPoint(x: 8.4, y: 7.6))
-            shackle.addCurve(to: CGPoint(x: 15.6, y: 7.6), control1: CGPoint(x: 8.4, y: 2.8), control2: CGPoint(x: 15.6, y: 2.8))
-            shackle.addLine(to: CGPoint(x: 15.6, y: 10.4))
+            shackle.move(to: CGPoint(x: 8.4, y: 10))
+            shackle.addLine(to: CGPoint(x: 8.4, y: 7.4))
+            shackle.addCurve(to: CGPoint(x: 15.6, y: 7.4), control1: CGPoint(x: 8.4, y: 2.6), control2: CGPoint(x: 15.6, y: 2.6))
+            shackle.addLine(to: CGPoint(x: 15.6, y: 10))
             context.stroke(shackle, with: .color(ink), style: line)
+            context.fill(circle(12, 14.3, 1.2), with: .color(ink))
             var keyhole = Path()
-            keyhole.move(to: CGPoint(x: 12, y: 14.2))
-            keyhole.addLine(to: CGPoint(x: 12, y: 16.6))
-            context.stroke(keyhole, with: .color(Palette.paper), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+            keyhole.move(to: CGPoint(x: 12, y: 14.6))
+            keyhole.addLine(to: CGPoint(x: 12, y: 16.8))
+            context.stroke(keyhole, with: .color(ink), style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
         case .map:
             var sheet = Path()
             sheet.addLines([CGPoint(x: 3, y: 6), CGPoint(x: 9, y: 4), CGPoint(x: 15, y: 6), CGPoint(x: 21, y: 4),
@@ -132,21 +142,26 @@ struct Pictogram: View {
             funnel.closeSubpath()
             outline(funnel, fill: Palette.mustard, in: &context)
         case .reset:
-            var upper = Path()
-            upper.move(to: CGPoint(x: 18.6, y: 9.2))
-            upper.addQuadCurve(to: CGPoint(x: 5.4, y: 8.4), control: CGPoint(x: 12, y: 1.5))
-            var lower = Path()
-            lower.move(to: CGPoint(x: 5.4, y: 14.8))
-            lower.addQuadCurve(to: CGPoint(x: 18.6, y: 15.6), control: CGPoint(x: 12, y: 22.5))
-            var arrows = Path()
-            arrows.addLines([CGPoint(x: 18.9, y: 4.6), CGPoint(x: 18.9, y: 9.4), CGPoint(x: 14.1, y: 9.4)])
-            arrows.move(to: CGPoint(x: 5.1, y: 19.4))
-            arrows.addLines([CGPoint(x: 5.1, y: 19.4), CGPoint(x: 5.1, y: 14.6), CGPoint(x: 9.9, y: 14.6)])
-            for path in [upper, lower, arrows] {
-                context.stroke(path, with: .color(ink), style: line)
+            // A mustard hold with one arrow turning around it. The arrow runs
+            // clockwise from -38° to 248° as a fine polyline, so its direction
+            // does not depend on how addArc reads "clockwise" with y down.
+            var turn = Path()
+            for step in 0...48 {
+                let angle = (-38 + Double(step) * 286 / 48) * .pi / 180
+                let point = CGPoint(x: 12 + 8.4 * cos(angle), y: 12 + 8.4 * sin(angle))
+                if step == 0 { turn.move(to: point) } else { turn.addLine(to: point) }
             }
-            context.fill(circle(12, 12, 2.4), with: .color(Palette.mustard))
-            context.stroke(circle(12, 12, 2.4), with: .color(ink), lineWidth: 1.4)
+            turn.move(to: CGPoint(x: 5.94, y: 3.15))
+            turn.addLines([CGPoint(x: 5.94, y: 3.15), CGPoint(x: 8.85, y: 4.21), CGPoint(x: 7.49, y: 7)])
+            context.stroke(turn, with: .color(ink), style: line)
+            var hold = Path()
+            hold.move(to: CGPoint(x: 8.3, y: 15.9))
+            hold.addCurve(to: CGPoint(x: 11.2, y: 9), control1: CGPoint(x: 7.3, y: 13.6), control2: CGPoint(x: 8.4, y: 10.2))
+            hold.addCurve(to: CGPoint(x: 16.7, y: 11.8), control1: CGPoint(x: 13.9, y: 7.9), control2: CGPoint(x: 16.6, y: 9.1))
+            hold.addCurve(to: CGPoint(x: 12.5, y: 16.8), control1: CGPoint(x: 16.8, y: 14.3), control2: CGPoint(x: 15, y: 16.3))
+            hold.addCurve(to: CGPoint(x: 8.3, y: 15.9), control1: CGPoint(x: 10.6, y: 17.2), control2: CGPoint(x: 8.9, y: 17.1))
+            hold.closeSubpath()
+            outline(hold, fill: Palette.mustard, in: &context)
         }
     }
 }
