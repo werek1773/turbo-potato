@@ -13,6 +13,7 @@ public struct Gym: Identifiable, Hashable, Codable, Sendable {
     public var longitude: Double?
     public var geofenceRadiusM: Int
     public var publishedAt: Date?
+    public var floorPlan: FloorPlan?
 
     public var timeZone: TimeZone { TimeZone(identifier: timezone) ?? .current }
     public var isPublished: Bool { publishedAt != nil }
@@ -21,6 +22,7 @@ public struct Gym: Identifiable, Hashable, Codable, Sendable {
         case id, slug, name, city, address, timezone, latitude, longitude
         case geofenceRadiusM = "geofence_radius_m"
         case publishedAt = "published_at"
+        case floorPlan = "floor_plan"
     }
 }
 
@@ -64,11 +66,13 @@ public struct Sector: Identifiable, Hashable, Codable, Sendable {
     public var lastResetAt: Date?
     /// Announced date of the next reset ("przykrętka").
     public var nextResetOn: LocalDate?
+    /// This sector's stretch of wall on the gym's floor plan.
+    public var mapPath: [MapPoint]?
     public var archivedAt: Date?
 
     public init(id: UUID, gymId: UUID, name: String, area: String? = nil, sortOrder: Int,
                 currentPhotoId: UUID? = nil, lastResetAt: Date? = nil,
-                nextResetOn: LocalDate? = nil, archivedAt: Date? = nil) {
+                nextResetOn: LocalDate? = nil, mapPath: [MapPoint]? = nil, archivedAt: Date? = nil) {
         self.id = id
         self.gymId = gymId
         self.name = name
@@ -77,6 +81,7 @@ public struct Sector: Identifiable, Hashable, Codable, Sendable {
         self.currentPhotoId = currentPhotoId
         self.lastResetAt = lastResetAt
         self.nextResetOn = nextResetOn
+        self.mapPath = mapPath
         self.archivedAt = archivedAt
     }
 
@@ -87,6 +92,7 @@ public struct Sector: Identifiable, Hashable, Codable, Sendable {
         case currentPhotoId = "current_photo_id"
         case lastResetAt = "last_reset_at"
         case nextResetOn = "next_reset_on"
+        case mapPath = "map_path"
         case archivedAt = "archived_at"
     }
 }
@@ -316,5 +322,29 @@ public struct CreatedInvite: Hashable, Codable, Sendable {
         case code
         case inviteId = "invite_id"
         case expiresAt = "expires_at"
+    }
+}
+
+/// Private wellbeing entry of a session (health data, explicit consent).
+public struct SessionWellbeing: Hashable, Codable, Sendable {
+    public let sessionId: UUID
+    public var energy: Int?
+    public var rpe: Int?
+    public var skin: SkinState?
+    public var painAreas: [BodyArea]
+
+    public init(sessionId: UUID, energy: Int? = nil, rpe: Int? = nil,
+                skin: SkinState? = nil, painAreas: [BodyArea] = []) {
+        self.sessionId = sessionId
+        self.energy = energy
+        self.rpe = rpe
+        self.skin = skin
+        self.painAreas = painAreas
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case energy, rpe, skin
+        case sessionId = "session_id"
+        case painAreas = "pain_areas"
     }
 }

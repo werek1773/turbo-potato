@@ -21,13 +21,16 @@ public enum AscentResult: String, Codable, Sendable, CaseIterable {
     case flash, top, project
 
     /// Tap cycle on a pin in "Podsumuj sesję": none → top → flash → project → none.
-    public static func next(after current: AscentResult?) -> AscentResult? {
-        switch current {
+    /// Flash is skipped when the problem was already tried on an earlier day.
+    public static func next(after current: AscentResult?, canFlash: Bool = true) -> AscentResult? {
+        let candidate: AscentResult? = switch current {
         case nil: .top
         case .top: .flash
         case .flash: .project
         case .project: nil
         }
+        if candidate == .flash && !canFlash { return .project }
+        return candidate
     }
 
     public var isTop: Bool { self != .project }

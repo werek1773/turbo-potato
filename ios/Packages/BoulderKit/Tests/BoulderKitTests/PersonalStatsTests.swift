@@ -56,4 +56,32 @@ struct PersonalStatsTests {
         #expect(stats.communityGrade == .hard)
         #expect(stats.limiters["finger_strength"] == 5)
     }
+
+    @Test func tapCycleSkipsFlashAfterEarlierAttempts() {
+        #expect(AscentResult.next(after: .top, canFlash: false) == .project)
+        #expect(AscentResult.next(after: .top, canFlash: true) == .flash)
+        #expect(AscentResult.next(after: nil, canFlash: false) == .top)
+    }
+
+    @Test func daySummary() {
+        let p1 = UUID(), p2 = UUID(), p3 = UUID()
+        let day = [
+            ascent(p1, "2026-10-01", .flash, grade: four),
+            ascent(p2, "2026-10-01", .top, grade: five),
+            ascent(p3, "2026-10-01", .project, grade: five),
+        ]
+        let summary = DaySummary.of(day, grades: [four.id: four, five.id: five])
+        #expect(summary.flashes == 1 && summary.tops == 1 && summary.projects == 1)
+        #expect(summary.hardestTop?.label == "5")
+        #expect(summary.logged == 3)
+    }
+
+    @Test func flashOnlyWithoutEarlierAttempts() {
+        let tried = UUID(), fresh = UUID()
+        let history = [ascent(tried, "2026-09-28", .project, grade: five)]
+        let flashable = DaySummary.flashableProblemIds(
+            problemIds: [tried, fresh], history: history, day: LocalDate("2026-10-01")!)
+        #expect(flashable == [fresh])
+    }
 }
+

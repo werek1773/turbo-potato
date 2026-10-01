@@ -1,68 +1,92 @@
 import BoulderKit
 import SwiftUI
 
+/// A gym: its plan drawn like the reset board. Tap a wall to peek at the
+/// sector, then open it.
 struct GymView: View {
     @Environment(AppModel.self) private var app
     @State private var catalog: GymCatalog
     @State private var isAddingSector = false
     @State private var newSectorName = ""
     @State private var newSectorArea = ""
-    @State private var plannedSector: Sector?
-    @State private var photoSector: Sector?
-    @State private var pinEditor: PinEditorTarget?
-    @State private var editorAfterPhoto: UUID?
+    @State private var selection: UUID?
+    @State private var openSector: SectorRoute?
+    @Namespace private var zoom
 
     init(gym: Gym) {
         _catalog = State(initialValue: GymCatalog(gym: gym, backend: Backend.shared))
     }
 
+    private var selectedSector: Sector? {
+        selection.flatMap { id in catalog.sectors.first { $0.id == id } }
+    }
+
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 18) {
                 if !catalog.upcomingResets.isEmpty {
                     UpcomingResetsBanner(resets: catalog.upcomingResets)
                 }
                 if !catalog.coverage.isEmpty {
                     GradeFilterBar(catalog: catalog)
                 }
-                ForEach(catalog.areas) { area in
-                    if let name = area.name {
-                        Text(name)
-                            .font(.title2.bold())
+                if let plan = catalog.gym.floorPlan {
+                    GymMapView(
+                        plan: plan,
+                        sectors: catalog.sectors,
+                        style: { catalog.mapStyle(for: $0) },
+                        dots: { catalog.mapDots(for: $0) },
+                        selection: $selection.animation(.snappy)
+                    )
+                    .padding(.vertical, 4)
+
+                    if let sector = selectedSector {
+                        SectorPeekCard(catalog: catalog, sector: sector) {
+                            openSector = SectorRoute(id: sector.id)
+                        }
+                        .matchedTransitionSource(id: sector.id, in: zoom)
+                        .id(sector.id)
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .bottom).combined(with: .opacity),
+                            removal: .opacity
+                        ))
+                    } else if !catalog.sectors.isEmpty {
+                        Label("Dotknij ściany", systemImage: "hand.tap")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity)
+                            .transition(.opacity)
+                    }
+                    DisclosureGroup("Wszystkie sektory") {
+                        SectorList(catalog: catalog) { openSector = SectorRoute(id: $0.id) }
                             .padding(.top, 8)
                     }
-                    ForEach(area.sectors) { sector in
-                        SectorCard(
-                            sector: sector,
-                            photo: sector.currentPhotoId.flatMap { catalog.photos[$0] },
-                            problems: catalog.problems(in: sector),
-                            highlighted: catalog.visibleProblemIds,
-                            topped: catalog.toppedProblemIds,
-                            gradeLabels: catalog.gradesById.mapValues(\.label),
-                            upcomingReset: catalog.upcomingReset(for: sector),
-                            staffActions: app.access.isStaff(of: catalog.gym.id)
-                                ? SectorStaffActions(
-                                    newPhoto: { photoSector = sector },
-                                    editPins: { pinEditor = PinEditorTarget(sectorId: sector.id) },
-                                    planReset: { plannedSector = sector }
-                                )
-                                : nil
-                        )
-                    }
+                    .tint(Palette.ink)
+                } else {
+                    SectorList(catalog: catalog) { openSector = SectorRoute(id: $0.id) }
                 }
             }
             .padding()
         }
+        .canvasBackground()
         .overlay {
-            if catalog.sectors.isEmpty && !catalog.isLoading {
-                ContentUnavailableView(
-                    "Brak sektorów",
-                    systemImage: "square.grid.2x2",
-                    description: Text("Routesetterzy jeszcze nie dodali sektorów tej ścianki.")
-                )
+            if catalog.sectors.isEmpty {
+                if catalog.isLoading {
+                    HoldMark(motion: .working).frame(width: 44)
+                } else {
+                    ContentUnavailableView(
+                        "Brak sektorów",
+                        systemImage: "square.grid.2x2",
+                        description: Text("Routesetterzy jeszcze nie dodali sektorów tej ścianki.")
+                    )
+                }
             }
         }
         .navigationTitle(catalog.gym.name)
+        .navigationDestination(item: $openSector) { route in
+            SectorDetailView(catalog: catalog, sectorId: route.id)
+                .navigationTransition(.zoom(sourceID: route.id, in: zoom))
+        }
         .toolbar {
             if app.access.isManager(of: catalog.gym.id) {
                 Button("Dodaj sektor", systemImage: "plus") {
@@ -86,31 +110,6 @@ struct GymView: View {
         } message: {
             Text("Sektor trafi na koniec trasy po ściance.")
         }
-        .sheet(item: $plannedSector) { sector in
-            NextResetSheet(sector: sector, timeZone: catalog.gym.timeZone) { date in
-                do {
-                    try await catalog.setNextReset(for: sector, on: date)
-                    return true
-                } catch {
-                    app.report(error)
-                    return false
-                }
-            }
-        }
-        .sheet(item: $photoSector, onDismiss: {
-            // Open the pin editor only once the photo sheet is fully gone.
-            if let sectorId = editorAfterPhoto {
-                editorAfterPhoto = nil
-                pinEditor = PinEditorTarget(sectorId: sectorId)
-            }
-        }) { sector in
-            NewSectorPhotoView(catalog: catalog, sector: sector) {
-                editorAfterPhoto = sector.id
-            }
-        }
-        .fullScreenCover(item: $pinEditor) { target in
-            PinEditorView(catalog: catalog, sectorId: target.sectorId)
-        }
         .task { await reload() }
         .refreshable { await reload() }
     }
@@ -120,42 +119,114 @@ struct GymView: View {
     }
 }
 
-/// "4 · 7/12" chips: tap a grade to show only its problems.
-struct GradeFilterBar: View {
-    @Bindable var catalog: GymCatalog
+struct SectorRoute: Hashable, Identifiable {
+    let id: UUID
+}
+
+/// What you see after tapping a wall: its photo with pins and progress.
+private struct SectorPeekCard: View {
+    let catalog: GymCatalog
+    let sector: Sector
+    let onOpen: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(catalog.coverage) { level in
-                        let selected = catalog.filter.gradeOrders == level.grade.sortOrder...level.grade.sortOrder
-                        Button {
-                            catalog.filter.gradeOrders = selected
-                                ? nil
-                                : level.grade.sortOrder...level.grade.sortOrder
-                        } label: {
-                            VStack(spacing: 2) {
-                                Text(level.grade.label).font(.headline)
-                                Text("\(level.topped)/\(level.active)").font(.caption2.monospacedDigit())
-                            }
-                            .frame(minWidth: 44)
-                            .padding(.vertical, 6)
-                            .padding(.horizontal, 10)
+        let count = catalog.problems(in: sector).count
+        let topped = catalog.toppedCount(in: sector)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(sector.name)
+                    .font(.serif(.title2))
+                Spacer()
+                if count > 0 {
+                    Text("\(topped) z \(count) zrobione")
+                        .font(.subheadline.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .contentTransition(.numericText())
+                }
+            }
+            if let reset = catalog.upcomingReset(for: sector) {
+                ResetBadge(reset: reset)
+            }
+            if let photo = catalog.photo(of: sector) {
+                SectorPhotoView(
+                    photo: photo,
+                    problems: catalog.problems(in: sector),
+                    highlighted: catalog.visibleProblemIds,
+                    topped: catalog.toppedProblemIds
+                )
+                .frame(maxHeight: 220)
+            } else {
+                Text("Tej ściany nie ma jeszcze na zdjęciu.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            Button("Zobacz problemy", action: onOpen)
+                .buttonStyle(.pill)
+        }
+        .paperCard(radius: 24)
+    }
+}
+
+/// One line per sector, grouped by room, in walking order.
+private struct SectorList: View {
+    let catalog: GymCatalog
+    let onSelect: (Sector) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            ForEach(catalog.areas) { area in
+                VStack(alignment: .leading, spacing: 0) {
+                    if let name = area.name {
+                        Text(name)
+                            .font(.serif(.title3))
+                            .padding(.bottom, 6)
+                    }
+                    ForEach(area.sectors) { sector in
+                        Button { onSelect(sector) } label: {
+                            SectorRow(catalog: catalog, sector: sector)
                         }
                         .buttonStyle(.plain)
-                        .glassEffect(selected ? .regular.tint(.accentColor) : .regular, in: .capsule)
+                        Divider()
                     }
                 }
             }
-            Toggle("Tylko niezrobione", isOn: $catalog.filter.onlyNotTopped)
-            if let lastVisit = catalog.lastVisit {
-                Toggle("Nowe od ostatniej wizyty", isOn: Binding(
-                    get: { catalog.filter.setAfter != nil },
-                    set: { catalog.filter.setAfter = $0 ? lastVisit : nil }
-                ))
-            }
         }
+    }
+}
+
+private struct SectorRow: View {
+    let catalog: GymCatalog
+    let sector: Sector
+
+    var body: some View {
+        let count = catalog.problems(in: sector).count
+        let topped = catalog.toppedCount(in: sector)
+        let style = catalog.mapStyle(for: sector)
+        HStack(spacing: 12) {
+            Capsule()
+                .fill(style.color)
+                .frame(width: 6, height: 28)
+                .opacity(style.isDimmed ? 0.3 : 1)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(sector.name).font(.body.weight(.medium))
+                if let reset = catalog.upcomingReset(for: sector) {
+                    Text("Przykrętka \(ResetBadge.relative(reset.daysLeft, date: reset.date))")
+                        .font(.caption)
+                        .foregroundStyle(reset.daysLeft <= 2 ? Palette.mustard : .secondary)
+                } else if catalog.photo(of: sector) == nil {
+                    Text("Brak zdjęcia").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            if count > 0 {
+                Text("\(topped)/\(count)")
+                    .font(.subheadline.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+            Image(systemName: "chevron.right").foregroundStyle(.tertiary)
+        }
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
     }
 }
 
