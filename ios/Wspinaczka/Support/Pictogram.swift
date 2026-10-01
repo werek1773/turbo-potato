@@ -4,7 +4,7 @@ import SwiftUI
 /// the palette, on a 24×24 grid.
 struct Pictogram: View {
     enum Kind {
-        case door, flash, top, project, chalkBag, lock, reset
+        case door, flash, top, project, chalkBag, lock, reset, map, filter
     }
 
     let kind: Kind
@@ -108,6 +108,29 @@ struct Pictogram: View {
             keyhole.move(to: CGPoint(x: 12, y: 14.2))
             keyhole.addLine(to: CGPoint(x: 12, y: 16.6))
             context.stroke(keyhole, with: .color(Palette.paper), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+        case .map:
+            var sheet = Path()
+            sheet.addLines([CGPoint(x: 3, y: 6), CGPoint(x: 9, y: 4), CGPoint(x: 15, y: 6), CGPoint(x: 21, y: 4),
+                            CGPoint(x: 21, y: 18), CGPoint(x: 15, y: 20), CGPoint(x: 9, y: 18), CGPoint(x: 3, y: 20)])
+            sheet.closeSubpath()
+            context.fill(sheet, with: .color(Palette.mat))
+            var middle = Path()
+            middle.addLines([CGPoint(x: 9, y: 4), CGPoint(x: 15, y: 6), CGPoint(x: 15, y: 20), CGPoint(x: 9, y: 18)])
+            middle.closeSubpath()
+            context.fill(middle, with: .color(Palette.moss))
+            context.stroke(sheet, with: .color(ink), style: line)
+            var folds = Path()
+            folds.move(to: CGPoint(x: 9, y: 4))
+            folds.addLine(to: CGPoint(x: 9, y: 18))
+            folds.move(to: CGPoint(x: 15, y: 6))
+            folds.addLine(to: CGPoint(x: 15, y: 20))
+            context.stroke(folds, with: .color(ink), style: line)
+        case .filter:
+            var funnel = Path()
+            funnel.addLines([CGPoint(x: 4, y: 5), CGPoint(x: 20, y: 5), CGPoint(x: 14, y: 12.5), CGPoint(x: 14, y: 19),
+                             CGPoint(x: 10, y: 21), CGPoint(x: 10, y: 12.5)])
+            funnel.closeSubpath()
+            outline(funnel, fill: Palette.mustard, in: &context)
         case .reset:
             var upper = Path()
             upper.move(to: CGPoint(x: 18.6, y: 9.2))

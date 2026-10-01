@@ -34,10 +34,9 @@ extension Color {
 }
 
 extension Font {
-    /// Rounded, bold face for titles and numbers: soft ends like the ink
-    /// line of the drawings and the holds themselves.
+    /// Wide, bold face for titles and numbers.
     static func display(_ style: Font.TextStyle) -> Font {
-        .system(style, design: .rounded, weight: .bold)
+        .system(style, weight: .bold).width(.expanded)
     }
 }
 
@@ -57,13 +56,6 @@ extension View {
             .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).stroke(Palette.line))
     }
 
-    /// Small uppercase label above a title ("PO SESJI").
-    func eyebrow() -> some View {
-        font(.caption.weight(.bold))
-            .tracking(1)
-            .textCase(.uppercase)
-            .foregroundStyle(Palette.mossDark)
-    }
 }
 
 /// Full-width moss capsule, the main call to action.

@@ -84,15 +84,16 @@ private struct PageDots: View {
     }
 }
 
-/// Eyebrow and title at the top of every intro page.
+/// Drawn icon and title at the top of every intro page.
 private struct PageHeader: View {
-    let eyebrow: String
+    let icon: Pictogram.Kind
     let title: String
     var detail: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(eyebrow).eyebrow()
+            Pictogram(kind: icon, size: 30)
+                .padding(.bottom, 2)
             Text(title)
                 .font(.display(.title))
                 .foregroundStyle(Palette.ink)
@@ -114,7 +115,7 @@ private struct MapPage: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            PageHeader(eyebrow: "Mapa ścianki", title: "Każdy problem na ścianie. Na jednej mapie.")
+            PageHeader(icon: .map, title: "Każdy problem na ścianie. Na jednej mapie.")
             Spacer(minLength: 0)
             if isActive {
                 DemoMap(grade: nil)
@@ -135,7 +136,7 @@ private struct FilterPage: View {
 
     var body: some View {
         VStack(spacing: 14) {
-            PageHeader(eyebrow: "Szukaj", title: "Chcesz same 4-ki? Jedno dotknięcie.")
+            PageHeader(icon: .filter, title: "Chcesz same 4-ki? Jedno dotknięcie.")
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
                     GradeChip(label: "Wszystkie", isOn: grade == nil) { grade = nil }
@@ -201,7 +202,7 @@ private struct SessionPage: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            PageHeader(eyebrow: "Po sesji", title: "Telefon zostaje w torbie.",
+            PageHeader(icon: .chalkBag, title: "Telefon zostaje w torbie.",
                        detail: "Po wyjściu stukasz w pinezki: raz top, dwa razy flash.")
             Spacer(minLength: 0)
             if isActive {
@@ -360,7 +361,7 @@ private struct ProgressPage: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            PageHeader(eyebrow: "Postęp", title: "Twoja piramida",
+            PageHeader(icon: .top, title: "Twoja piramida",
                        detail: "Zrobione na każdej wycenie od ostatniej przykrętki.")
             Spacer(minLength: 0)
             if isActive {
