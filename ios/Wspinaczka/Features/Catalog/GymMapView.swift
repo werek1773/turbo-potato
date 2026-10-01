@@ -58,9 +58,13 @@ struct GymMapView: View {
                         PlanShape(points: plan.outlines[index])
                             .stroke(Palette.line, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
                     }
+                    // Climbing wall between sectors (unlabeled on the board): drawn like
+                    // the rest of the wall so it never reads as a gap.
                     ForEach(plan.walls.indices, id: \.self) { index in
                         PlanShape(points: plan.walls[index])
-                            .stroke(Palette.line, style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
+                            .trim(from: 0, to: frame >= 2 ? 1 : 0)
+                            .stroke(Palette.moss, style: StrokeStyle(lineWidth: 6, lineCap: .round, lineJoin: .round))
+                            .opacity(selection == nil ? 1 : 0.35)
                     }
                     ForEach(Array(allDots.enumerated()), id: \.element.sector.id) { order, item in
                         if let path = item.sector.mapPath {

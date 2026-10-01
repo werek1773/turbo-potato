@@ -34,7 +34,8 @@ public struct FloorPlan: Hashable, Sendable, Codable {
 
     /// Width / height of the plan.
     public let aspect: Double
-    /// Stretches of climbing wall that are not sectors (corners, aretes).
+    /// Climbing wall that belongs to no sector (unlabeled on the reset
+    /// board); drawn like the rest of the wall.
     public let walls: [[MapPoint]]
     /// Floor edges and room boundaries, drawn faintly.
     public let outlines: [[MapPoint]]
