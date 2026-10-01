@@ -63,8 +63,20 @@ select throws_ok(
   '42501', null,
   'a sector cannot be smuggled under another gym id'
 );
-update storage.objects set name = name || '.bak' where name = :'good_path';
-delete from storage.objects where name = :'good_path';
+-- Either RLS silently matches nothing or Supabase's storage guard raises:
+-- both are fine, the object must survive.
+do $$
+begin
+  begin
+    update storage.objects set name = name || '.bak' where bucket_id = 'sector-photos';
+  exception when others then null;
+  end;
+  begin
+    delete from storage.objects where bucket_id = 'sector-photos';
+  exception when others then null;
+  end;
+end;
+$$;
 
 select tests.authenticate_as(:'rival');
 select throws_ok(

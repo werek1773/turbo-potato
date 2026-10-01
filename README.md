@@ -25,3 +25,23 @@ supabase db start && supabase test db
 # bez Dockera (Postgres 16 + pgTAP)
 scripts/local-db/test.sh
 ```
+
+## Aplikacja iOS
+
+| Ścieżka | Zawartość |
+|---|---|
+| `ios/project.yml` | definicja projektu Xcode (XcodeGen), iOS 26+, bundle ID `wspinaczka.app` |
+| `ios/Wspinaczka/` | SwiftUI: logowanie przez Apple, katalog ścianki, profil, zaproszenia |
+| `ios/Packages/BoulderKit/` | logika domenowa (dzień wspinaczkowy, filtry, pokrycie, statystyki) + testy |
+
+Pierwsze uruchomienie na Macu:
+
+```bash
+brew install xcodegen
+cd ios
+echo "DEVELOPMENT_TEAM = TWOJ_TEAM_ID" > Config/Local.xcconfig   # Xcode → Settings → Accounts
+xcodegen generate
+open Wspinaczka.xcodeproj
+```
+
+Po każdym `git pull`, który zmienia `project.yml` lub dodaje pliki, uruchom ponownie `xcodegen generate`.
