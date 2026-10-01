@@ -197,6 +197,10 @@ extension Backend {
             let p_sector_id: UUID
             let p_date: LocalDate?
 
+            enum CodingKeys: String, CodingKey {
+                case p_sector_id, p_date
+            }
+
             // Send an explicit null to clear the date (the synthesized
             // encoder would omit the key and miss the RPC signature).
             func encode(to encoder: Encoder) throws {
