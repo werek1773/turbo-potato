@@ -89,7 +89,7 @@ struct PinEditorView: View {
                  ? "Dotknij ściany, aby dodać problem. Dotknij pinezki, aby ją edytować."
                  : "Dotknij nowego miejsca dla pinezki.")
                 .font(.footnote)
-                .foregroundStyle(moving == nil ? Color.secondary : Palette.olive)
+                .foregroundStyle(moving == nil ? Color.secondary : Palette.mossDark)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
 

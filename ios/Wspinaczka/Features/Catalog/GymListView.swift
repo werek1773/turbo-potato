@@ -1,38 +1,19 @@
 import BoulderKit
 import SwiftUI
 
-/// Home: a greeting and the gyms as cards with their plans.
+/// Gyms as cards with their plans; shown only when there is more than one.
 struct GymListView: View {
     @Environment(AppModel.self) private var app
-    @AppStorage("favoriteGymId") private var favoriteGymId = ""
-
-    /// The gym picked during onboarding comes first.
-    private var gyms: [Gym] {
-        app.gyms.sorted { lhs, rhs in
-            (lhs.id.uuidString == favoriteGymId ? 0 : 1) < (rhs.id.uuidString == favoriteGymId ? 0 : 1)
-        }
-    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        HoldMark(motion: .breathing)
-                            .frame(width: 40)
-                        Text(Greeting.text(for: app.profile?.displayName))
-                            .font(.serif(.largeTitle))
-                            .contentTransition(.opacity)
-                    }
-                    .padding(.top, 8)
-                    .rise()
-
-                    ForEach(Array(gyms.enumerated()), id: \.element.id) { index, gym in
+                VStack(alignment: .leading, spacing: 16) {
+                    ForEach(app.gyms) { gym in
                         NavigationLink(value: gym) {
                             GymCard(gym: gym)
                         }
                         .buttonStyle(.plain)
-                        .rise(0.15 + Double(index) * 0.1)
                     }
                 }
                 .padding()
@@ -40,18 +21,60 @@ struct GymListView: View {
             .canvasBackground()
             .overlay {
                 if app.gyms.isEmpty {
-                    ContentUnavailableView(
-                        "Brak ścianek",
-                        systemImage: "mountain.2",
-                        description: Text("Twoja ścianka pojawi się tutaj, gdy zostanie opublikowana.")
-                    )
+                    VStack(spacing: 8) {
+                        DrawingView(drawing: .chalk)
+                            .frame(height: 140)
+                        Text("Brak ścianek")
+                            .font(.display(.title3))
+                        Text("Twoja ścianka pojawi się tutaj, gdy zostanie opublikowana.")
+                            .foregroundStyle(Palette.muted)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(32)
                 }
             }
-            .toolbar(.hidden, for: .navigationBar)
+            .navigationTitle("Ścianki")
             .navigationDestination(for: Gym.self) { gym in
                 GymView(gym: gym)
             }
             .refreshable { await app.refresh() }
+        }
+    }
+}
+
+/// A gym on a card: its plan, name and address.
+struct GymCard: View {
+    let gym: Gym
+
+    @State private var paths: [[MapPoint]] = []
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if let plan = gym.floorPlan {
+                MiniMapView(plan: plan, paths: paths)
+                    .frame(maxHeight: 170)
+                    .frame(maxWidth: .infinity)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(gym.displayName)
+                    .font(.display(.title3))
+                    .foregroundStyle(Palette.ink)
+                if let address = gym.address {
+                    Text(address).font(.subheadline).foregroundStyle(Palette.muted)
+                }
+                if !gym.isPublished {
+                    Label("Niewidoczna dla klientów", systemImage: "eye.slash")
+                        .font(.caption)
+                        .foregroundStyle(Palette.mustardText)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .paperCard(radius: 24)
+        .contentShape(RoundedRectangle(cornerRadius: 24))
+        .task(id: gym.id) {
+            guard gym.floorPlan != nil, paths.isEmpty else { return }
+            paths = (try? await Backend.shared.sectors(gymId: gym.id))?.compactMap(\.mapPath) ?? []
         }
     }
 }

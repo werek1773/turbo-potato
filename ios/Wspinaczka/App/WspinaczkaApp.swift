@@ -9,7 +9,7 @@ struct WspinaczkaApp: App {
         WindowGroup {
             RootView()
                 .environment(app)
-                .tint(Palette.olive)
+                .tint(Palette.moss)
                 .task { app.start() }
                 .onOpenURL { url in
                     if let code = InviteCode.code(from: url) {
@@ -22,28 +22,36 @@ struct WspinaczkaApp: App {
 
 struct RootView: View {
     @Environment(AppModel.self) private var app
-    /// The mark gets to finish drawing itself even when the session is restored instantly.
+    @AppStorage("hasSeenIntro") private var hasSeenIntro = false
+    /// The splash gets to finish even when the session is restored instantly.
     @State private var isSplashDone = false
+    /// Decided once per launch: the whole climb on the very first launch only.
+    @State private var isFirstLaunch = !UserDefaults.standard.bool(forKey: "hasSeenIntro")
 
     var body: some View {
         @Bindable var app = app
         ZStack {
             if !isSplashDone || app.phase == .launching {
-                SplashView()
+                SplashView(isFirstLaunch: isFirstLaunch)
                     .transition(.opacity)
-            } else if case let .signedIn(userId) = app.phase {
-                SignedInRoot(userId: userId)
-                    .id(userId)
-                    .transition(.blurReplace)
-            } else {
+            } else if case .signedIn = app.phase {
+                MainTabView()
+                    .transition(.opacity)
+            } else if hasSeenIntro {
                 SignInView()
-                    .transition(.blurReplace)
+                    .transition(.opacity)
+            } else {
+                IntroView()
+                    .transition(.opacity)
             }
         }
-        .animation(.smooth(duration: 0.6), value: app.phase)
-        .animation(.smooth(duration: 0.6), value: isSplashDone)
+        .animation(.smooth(duration: 0.5), value: app.phase)
+        .animation(.smooth(duration: 0.5), value: isSplashDone)
+        .preferredColorScheme(.light)
         .task {
-            try? await Task.sleep(for: .seconds(1.6))
+            // The hand draws itself in 13 frames; give the name a moment after it.
+            let duration = isFirstLaunch ? Double(Drawing.grip.drawOnFrames) / StopMotion.fps + 0.9 : 0.8
+            try? await Task.sleep(for: .seconds(duration))
             isSplashDone = true
         }
         .alert("Coś poszło nie tak", isPresented: $app.isShowingError) {
@@ -54,39 +62,21 @@ struct RootView: View {
     }
 }
 
-/// First run after signing in goes through onboarding, then the tabs.
-struct SignedInRoot: View {
-    @AppStorage private var isOnboarded: Bool
-
-    init(userId: UUID) {
-        _isOnboarded = AppStorage(wrappedValue: false, "onboarded.\(userId.uuidString)")
-    }
-
-    var body: some View {
-        ZStack {
-            if isOnboarded {
-                MainTabView()
-                    .transition(.blurReplace)
-            } else {
-                OnboardingView { isOnboarded = true }
-                    .transition(.blurReplace)
-            }
-        }
-        .animation(.smooth(duration: 0.6), value: isOnboarded)
-    }
-}
-
+/// On the first launch the hand draws itself onto the hold; later it is
+/// already there.
 struct SplashView: View {
+    let isFirstLaunch: Bool
+
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 6) {
             Spacer()
-            HStack(spacing: 12) {
-                HoldMark(motion: .drawIn)
-                    .frame(width: 52)
-                Text("Wspinaczka")
-                    .font(.serif(.largeTitle))
-                    .rise(0.9)
-            }
+            DrawingView(drawing: .grip, drawsOn: isFirstLaunch)
+                .frame(height: 220)
+            Text("Wspinaczka")
+                .font(.display(.largeTitle))
+                .foregroundStyle(Palette.ink)
+                .padding(.top, 12)
+                .fadeUp(isFirstLaunch ? Double(Drawing.grip.drawOnFrames) / StopMotion.fps - 0.2 : 0)
             Spacer()
         }
         .frame(maxWidth: .infinity)
@@ -100,8 +90,8 @@ struct MainTabView: View {
     var body: some View {
         @Bindable var app = app
         TabView {
-            Tab("Ścianki", systemImage: "mountain.2") {
-                GymListView()
+            Tab("Ścianka", systemImage: "map") {
+                GymsTab()
             }
             Tab("Sesja", systemImage: "checklist") {
                 SessionView()
@@ -112,6 +102,22 @@ struct MainTabView: View {
         }
         .sheet(item: $app.pendingInvite) { invite in
             AcceptInviteView(initialCode: invite.code)
+        }
+    }
+}
+
+/// With one gym (the usual case) its map opens straight away.
+struct GymsTab: View {
+    @Environment(AppModel.self) private var app
+
+    var body: some View {
+        if app.gyms.count == 1, let gym = app.gyms.first {
+            NavigationStack {
+                GymView(gym: gym)
+            }
+            .id(gym.id)
+        } else {
+            GymListView()
         }
     }
 }

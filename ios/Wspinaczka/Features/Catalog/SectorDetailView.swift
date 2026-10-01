@@ -32,18 +32,24 @@ struct SectorDetailView: View {
                         )
                         problemSummary(sector)
                     } else {
-                        ContentUnavailableView {
-                            Label("Brak zdjęcia sektora", systemImage: "camera")
-                        } description: {
+                        VStack(spacing: 8) {
+                            DrawingView(drawing: .chalk)
+                                .frame(height: 150)
+                            Text("Brak zdjęcia sektora")
+                                .font(.display(.title3))
                             Text(isStaff
                                  ? "Zrób zdjęcie ściany i zaznacz na nim problemy."
                                  : "Routesetterzy jeszcze nie dodali tego sektora.")
-                        } actions: {
+                                .foregroundStyle(Palette.muted)
+                                .multilineTextAlignment(.center)
                             if isStaff {
                                 Button("Zrób zdjęcie sektora") { isTakingPhoto = true }
-                                    .buttonStyle(.borderedProminent)
+                                    .buttonStyle(.pill)
+                                    .padding(.top, 8)
                             }
                         }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 24)
                     }
                     if let lastReset = sector.lastResetAt {
                         Text("Ostatnia przykrętka: \(lastReset.formatted(date: .long, time: .omitted))")

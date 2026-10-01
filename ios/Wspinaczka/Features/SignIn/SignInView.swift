@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// Signing in again after signing out; the first launch goes through the intro.
 struct SignInView: View {
     @Environment(AppModel.self) private var app
     #if DEBUG
@@ -7,41 +8,31 @@ struct SignInView: View {
     #endif
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 10) {
             Spacer()
-            VStack(spacing: 18) {
-                HoldMark(motion: .breathing)
-                    .frame(width: 64)
-                    .rise()
-                Text("Wspinaj się.\nResztę zapiszemy.")
-                    .font(.serif(.largeTitle))
-                    .multilineTextAlignment(.center)
-                    .rise(0.12)
-                Text("Problemy Twojej ścianki na mapie, a sesja podsumowana po wyjściu.")
-                    .font(.serif(.body))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .rise(0.24)
-            }
+            DrawingView(drawing: .grip)
+                .frame(height: 200)
+            Text("Wspinaczka")
+                .font(.display(.largeTitle))
+                .foregroundStyle(Palette.ink)
+            Text("Problemy Twojej ścianki na mapie i sesja zapisana po wyjściu.")
+                .foregroundStyle(Palette.muted)
+                .multilineTextAlignment(.center)
             Spacer()
-            VStack(spacing: 14) {
-                AppleSignInButton(label: .continue) { credential in
-                    Task { await app.signIn(with: credential) }
-                } onError: { error in
-                    app.report(error)
-                }
-                .clipShape(Capsule())
-                .rise(0.38)
-                Text("Twoje przejścia i samopoczucie widzisz tylko Ty.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .rise(0.48)
-                #if DEBUG
-                Button("Logowanie testowe") { isShowingTestSignIn = true }
-                    .font(.footnote)
-                #endif
+            AppleSignInButton(label: .continue) { credential in
+                Task { await app.signIn(with: credential) }
+            } onError: { error in
+                app.report(error)
             }
+            .clipShape(Capsule())
+            Text("Twoje przejścia widzisz tylko Ty.")
+                .font(.footnote)
+                .foregroundStyle(Palette.muted)
+                .multilineTextAlignment(.center)
+            #if DEBUG
+            Button("Logowanie testowe") { isShowingTestSignIn = true }
+                .font(.footnote)
+            #endif
         }
         .padding(24)
         .background(Palette.canvas.ignoresSafeArea())

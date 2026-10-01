@@ -155,8 +155,7 @@ private struct Tally: View {
 
     var body: some View {
         VStack(spacing: 2) {
-            Image(systemName: result.symbol)
-                .foregroundStyle(result.tint)
+            Pictogram(kind: result.pictogram, size: 22)
             Text("\(count)").font(.title3.bold().monospacedDigit())
             Text(result.polishName).font(.caption2).foregroundStyle(.secondary)
         }

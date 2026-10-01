@@ -14,14 +14,14 @@ extension GymCatalog {
     }
 
     /// Wall color on the map: dashed hairline without a photo, mustard when a
-    /// reset is close, chartreuse otherwise; dimmed when the filter excludes it.
+    /// reset is close, moss otherwise; dimmed when the filter excludes it.
     func mapStyle(for sector: Sector) -> SectorMapStyle {
         guard photo(of: sector) != nil else {
             return SectorMapStyle(color: Palette.line, dashed: true, isDimmed: !filter.isEmpty)
         }
         let soon = upcomingReset(for: sector).map { $0.daysLeft <= 2 } ?? false
         return SectorMapStyle(
-            color: soon ? Palette.mustard : Palette.chartreuse,
+            color: soon ? Palette.mustard : Palette.moss,
             isDimmed: !filter.isEmpty && matchingCount(in: sector) == 0
         )
     }
