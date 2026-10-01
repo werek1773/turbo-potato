@@ -39,6 +39,29 @@ public struct LocalDate: Hashable, Comparable, Sendable, Codable, CustomStringCo
         return LocalDate(year: components.year!, month: components.month!, day: components.day!)
     }
 
+    /// The calendar day of `date` in `timeZone` (no 04:00 shift — use
+    /// `ClimbingDay` for sessions).
+    public init(_ date: Date, in timeZone: TimeZone) {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        self.init(year: components.year!, month: components.month!, day: components.day!)
+    }
+
+    /// Noon of this day in `timeZone` (safe for date pickers across DST).
+    public func date(in timeZone: TimeZone) -> Date {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        return calendar.date(from: DateComponents(year: year, month: month, day: day, hour: 12))!
+    }
+
+    /// Whole days from `self` to `other` (positive when `other` is later).
+    public func days(until other: LocalDate) -> Int {
+        let utc = TimeZone(identifier: "UTC")!
+        let seconds = other.date(in: utc).timeIntervalSince(date(in: utc))
+        return Int((seconds / 86_400).rounded())
+    }
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         let raw = try container.decode(String.self)

@@ -172,14 +172,15 @@ struct Backend: Sendable {
 }
 
 extension Backend {
-    func addSector(gymId: UUID, name: String, sortOrder: Int) async throws {
+    func addSector(gymId: UUID, name: String, area: String?, sortOrder: Int) async throws {
         struct NewSector: Encodable, Sendable {
             let gym_id: UUID
             let name: String
+            let area: String?
             let sort_order: Int
         }
         try await client.from("sectors")
-            .insert(NewSector(gym_id: gymId, name: name, sort_order: sortOrder))
+            .insert(NewSector(gym_id: gymId, name: name, area: area, sort_order: sortOrder))
             .execute()
     }
 }
@@ -187,4 +188,27 @@ extension Backend {
 extension Backend {
     /// One client for the whole app (it owns the auth session).
     static let shared = Backend()
+}
+
+extension Backend {
+    /// Announce (or clear with nil) the next reset of a sector.
+    func setNextReset(sectorId: UUID, on date: LocalDate?) async throws {
+        struct Params: Encodable, Sendable {
+            let p_sector_id: UUID
+            let p_date: LocalDate?
+
+            enum CodingKeys: String, CodingKey {
+                case p_sector_id, p_date
+            }
+
+            // Send an explicit null to clear the date (the synthesized
+            // encoder would omit the key and miss the RPC signature).
+            func encode(to encoder: Encoder) throws {
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                try container.encode(p_sector_id, forKey: .p_sector_id)
+                try container.encode(p_date, forKey: .p_date)
+            }
+        }
+        try await client.rpc("set_next_reset", params: Params(p_sector_id: sectorId, p_date: date)).execute()
+    }
 }
