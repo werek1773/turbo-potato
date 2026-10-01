@@ -6,6 +6,7 @@ struct GymView: View {
     @State private var catalog: GymCatalog
     @State private var isAddingSector = false
     @State private var newSectorName = ""
+    @State private var newSectorArea = ""
 
     init(gym: Gym) {
         _catalog = State(initialValue: GymCatalog(gym: gym, backend: Backend.shared))
@@ -17,14 +18,21 @@ struct GymView: View {
                 if !catalog.coverage.isEmpty {
                     GradeFilterBar(catalog: catalog)
                 }
-                ForEach(catalog.sectors) { sector in
-                    SectorCard(
-                        sector: sector,
-                        photo: sector.currentPhotoId.flatMap { catalog.photos[$0] },
-                        problems: catalog.problems(in: sector),
-                        highlighted: catalog.visibleProblemIds,
-                        topped: catalog.toppedProblemIds
-                    )
+                ForEach(catalog.areas) { area in
+                    if let name = area.name {
+                        Text(name)
+                            .font(.title2.bold())
+                            .padding(.top, 8)
+                    }
+                    ForEach(area.sectors) { sector in
+                        SectorCard(
+                            sector: sector,
+                            photo: sector.currentPhotoId.flatMap { catalog.photos[$0] },
+                            problems: catalog.problems(in: sector),
+                            highlighted: catalog.visibleProblemIds,
+                            topped: catalog.toppedProblemIds
+                        )
+                    }
                 }
             }
             .padding()
@@ -41,19 +49,26 @@ struct GymView: View {
         .navigationTitle(catalog.gym.name)
         .toolbar {
             if app.access.isManager(of: catalog.gym.id) {
-                Button("Dodaj sektor", systemImage: "plus") { isAddingSector = true }
+                Button("Dodaj sektor", systemImage: "plus") {
+                    newSectorArea = catalog.areas.last?.name ?? ""
+                    isAddingSector = true
+                }
             }
         }
         .alert("Nowy sektor", isPresented: $isAddingSector) {
-            TextField("Nazwa, np. Grota", text: $newSectorName)
+            TextField("Nazwa, np. Połóg", text: $newSectorName)
+            TextField("Sala, np. Duża sala", text: $newSectorArea)
             Button("Dodaj") {
                 let name = newSectorName
+                let area = newSectorArea
                 newSectorName = ""
                 Task {
-                    do { try await catalog.addSector(named: name) } catch { app.report(error) }
+                    do { try await catalog.addSector(named: name, area: area) } catch { app.report(error) }
                 }
             }
             Button("Anuluj", role: .cancel) { newSectorName = "" }
+        } message: {
+            Text("Sektor trafi na koniec trasy po ściance.")
         }
         .task { await reload() }
         .refreshable { await reload() }

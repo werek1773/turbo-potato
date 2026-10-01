@@ -57,13 +57,27 @@ public struct Sector: Identifiable, Hashable, Codable, Sendable {
     public let id: UUID
     public let gymId: UUID
     public var name: String
+    /// Room or zone, e.g. "Mała sala". Nil for gyms without areas.
+    public var area: String?
     public var sortOrder: Int
     public var currentPhotoId: UUID?
     public var lastResetAt: Date?
     public var archivedAt: Date?
 
+    public init(id: UUID, gymId: UUID, name: String, area: String? = nil, sortOrder: Int,
+                currentPhotoId: UUID? = nil, lastResetAt: Date? = nil, archivedAt: Date? = nil) {
+        self.id = id
+        self.gymId = gymId
+        self.name = name
+        self.area = area
+        self.sortOrder = sortOrder
+        self.currentPhotoId = currentPhotoId
+        self.lastResetAt = lastResetAt
+        self.archivedAt = archivedAt
+    }
+
     enum CodingKeys: String, CodingKey {
-        case id, name
+        case id, name, area
         case gymId = "gym_id"
         case sortOrder = "sort_order"
         case currentPhotoId = "current_photo_id"

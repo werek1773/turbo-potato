@@ -122,3 +122,35 @@ public enum InviteCode {
         return components.url!
     }
 }
+
+/// Sectors of one area (room), in walking order.
+public struct SectorArea: Hashable, Sendable, Identifiable {
+    public let name: String?
+    public let sectors: [Sector]
+
+    public var id: String { name ?? "" }
+}
+
+extension Sector {
+    /// Groups sectors by area keeping the walking order: areas appear in the
+    /// order of their first sector, sectors in `sortOrder` within an area.
+    public static func groupedByArea(_ sectors: [Sector]) -> [SectorArea] {
+        let ordered = sectors.sorted { ($0.sortOrder, $0.name) < ($1.sortOrder, $1.name) }
+        var areas: [SectorArea] = []
+        var index: [String: Int] = [:]
+        var buckets: [[Sector]] = []
+        for sector in ordered {
+            let key = sector.area ?? ""
+            if let position = index[key] {
+                buckets[position].append(sector)
+            } else {
+                index[key] = buckets.count
+                buckets.append([sector])
+            }
+        }
+        for bucket in buckets {
+            areas.append(SectorArea(name: bucket[0].area, sectors: bucket))
+        }
+        return areas
+    }
+}

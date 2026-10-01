@@ -75,4 +75,15 @@ struct CatalogTests {
         #expect(InviteCode.code(from: url) == "7KQ2-M9XA-T4BC")
         #expect(InviteCode.code(from: URL(string: "https://example.com/invite?code=X")!) == nil)
     }
+
+    @Test func sectorsGroupByAreaInWalkingOrder() {
+        let names: [(String, String, Int)] = [
+            ("Duża sala", "Połóg", 5), ("Mała sala", "Pion", 2), ("Mała sala", "Slab", 1), ("Duża sala", "Trójkąt", 6),
+        ]
+        let sectors = names.map { Sector(id: UUID(), gymId: gym, name: $0.1, area: $0.0, sortOrder: $0.2) }
+        let areas = Sector.groupedByArea(sectors)
+        #expect(areas.map(\.name) == ["Mała sala", "Duża sala"])
+        #expect(areas[0].sectors.map(\.name) == ["Slab", "Pion"])
+        #expect(areas[1].sectors.map(\.name) == ["Połóg", "Trójkąt"])
+    }
 }

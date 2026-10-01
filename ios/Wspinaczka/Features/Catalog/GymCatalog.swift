@@ -64,10 +64,19 @@ final class GymCatalog {
         self.myAscents = try await ascents
     }
 
-    func addSector(named name: String) async throws {
-        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        try await backend.addSector(gymId: gym.id, name: trimmed, sortOrder: (sectors.map(\.sortOrder).max() ?? 0) + 1)
+    var areas: [SectorArea] { Sector.groupedByArea(sectors) }
+
+    /// Appends a sector at the end of the walking order.
+    func addSector(named name: String, area: String) async throws {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedArea = area.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return }
+        try await backend.addSector(
+            gymId: gym.id,
+            name: trimmedName,
+            area: trimmedArea.isEmpty ? nil : trimmedArea,
+            sortOrder: (sectors.map(\.sortOrder).max() ?? 0) + 1
+        )
         try await load()
     }
 }

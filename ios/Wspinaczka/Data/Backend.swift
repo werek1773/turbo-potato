@@ -172,14 +172,15 @@ struct Backend: Sendable {
 }
 
 extension Backend {
-    func addSector(gymId: UUID, name: String, sortOrder: Int) async throws {
+    func addSector(gymId: UUID, name: String, area: String?, sortOrder: Int) async throws {
         struct NewSector: Encodable, Sendable {
             let gym_id: UUID
             let name: String
+            let area: String?
             let sort_order: Int
         }
         try await client.from("sectors")
-            .insert(NewSector(gym_id: gymId, name: name, sort_order: sortOrder))
+            .insert(NewSector(gym_id: gymId, name: name, area: area, sort_order: sortOrder))
             .execute()
     }
 }
