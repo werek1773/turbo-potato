@@ -5,6 +5,8 @@ import SwiftUI
 struct SectorMapStyle {
     var color: Color
     var dashed = false
+    /// A reset is announced within two days: mustard wash under the wall.
+    var isResetSoon = false
     var isDimmed = false
 }
 
@@ -46,6 +48,7 @@ struct GymMapView: View {
             let sinceFilter = StopMotion.frame(at: timeline.date, since: filterChange)
             GeometryReader { proxy in
                 let size = proxy.size
+                let joints = boundaries(in: size)
                 ZStack(alignment: .topLeading) {
                     ForEach(plan.mats.indices, id: \.self) { index in
                         PlanShape(points: plan.mats[index], isClosed: true).fill(Palette.mat)
@@ -66,6 +69,14 @@ struct GymMapView: View {
                             wall(item.sector, path: path, order: order, frame: frame)
                             holds(item.dots, path: path, order: order, frame: frame, sinceFilter: sinceFilter, size: size)
                         }
+                    }
+                    // Where one wall ends and the next begins: a short tick
+                    // across the line, added once every wall is drawn.
+                    let isPlanDrawn = Double(frame) >= Double(max(allDots.count - 1, 0)) * 0.9 + 3
+                    ForEach(joints.indices, id: \.self) { index in
+                        tick(joints[index], index: index, size: size, frame: frame)
+                            .opacity(isPlanDrawn ? (selection == nil ? 0.7 : 0.35) : 0)
+                            .animation(.snappy, value: selection)
                     }
                     ForEach(plan.entrances, id: \.self) { door in
                         Pictogram(kind: .door, size: 26)
@@ -98,14 +109,14 @@ struct GymMapView: View {
         let isFaded = selection != nil && !isSelected
         // Three frames per wall, each starting a little after the previous one.
         let drawn = min(1, max(0, (Double(frame) - Double(order) * 0.9) / 3))
-        let isResetSoon = wallStyle.color == Palette.mustard
         ZStack {
             // A wide wash of color under the ink: moss for the chosen wall,
-            // mustard where a reset is coming.
+            // mustard where a reset is coming. Square ends, so the wash stops
+            // at the boundary ticks instead of spilling onto the next wall.
             PlanShape(points: path)
                 .stroke(isSelected ? Palette.moss : Palette.mustard,
-                        style: StrokeStyle(lineWidth: isSelected ? 12 : 7, lineCap: .round, lineJoin: .round))
-                .opacity(drawn < 1 ? 0 : (isSelected ? 1 : (isResetSoon && !isFaded ? 0.55 : 0)))
+                        style: StrokeStyle(lineWidth: isSelected ? 12 : 7, lineCap: .butt, lineJoin: .round))
+                .opacity(drawn < 1 ? 0 : (isSelected ? 1 : (wallStyle.isResetSoon && !isFaded ? 0.55 : 0)))
             PlanShape(points: path, boilFrame: reduceMotion ? nil : frame, salt: Double(order * 11))
                 .trim(from: 0, to: drawn)
                 .stroke(Palette.ink,
@@ -147,6 +158,28 @@ struct GymMapView: View {
                     .accessibilityHidden(true)
             }
         }
+    }
+
+    /// Joints between stretches of wall (sectors and plain wall), in view points.
+    private func boundaries(in size: CGSize) -> [(point: MapPoint, across: MapPoint)] {
+        guard size.width > 0, size.height > 0 else { return [] }
+        let lines = (mapped.map { $0.path } + plan.walls).map { line in
+            line.map { MapPoint(x: $0.x * size.width, y: $0.y * size.height) }
+        }
+        return PlanGeometry.joints(of: lines, tolerance: 1)
+    }
+
+    /// A short ink tick across the wall at a joint, thinner than the wall.
+    private func tick(_ joint: (point: MapPoint, across: MapPoint), index: Int, size: CGSize, frame: Int) -> some View {
+        let half = 4.5
+        let ends = [-half, half].map { offset in
+            MapPoint(x: (joint.point.x + joint.across.x * offset) / size.width,
+                     y: (joint.point.y + joint.across.y * offset) / size.height)
+        }
+        return PlanShape(points: ends, boilFrame: reduceMotion ? nil : frame, salt: Double(900 + index * 13))
+            .stroke(Palette.ink, style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 
     private func select(at location: CGPoint, size: CGSize) {

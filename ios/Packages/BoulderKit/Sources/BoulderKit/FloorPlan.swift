@@ -125,6 +125,46 @@ public enum PlanGeometry {
         return nil
     }
 
+    /// Where lines meet end to end (the end of one sector is the start of
+    /// the next), with the unit vector a boundary tick runs along there:
+    /// across a straight wall, along the bisector at a corner. Free ends are
+    /// not joints. Points and `tolerance` are in the input's units.
+    public static func joints(of lines: [[MapPoint]], tolerance: Double) -> [(point: MapPoint, across: MapPoint)] {
+        // Both ends of every line, each with the unit vector into the line.
+        var ends: [(point: MapPoint, inward: MapPoint)] = []
+        for line in lines {
+            guard let first = line.first, let last = line.last,
+                  let second = line.first(where: { $0 != first }),
+                  let beforeLast = line.last(where: { $0 != last }) else { continue }
+            ends.append((first, direction(from: first, to: second)))
+            ends.append((last, direction(from: last, to: beforeLast)))
+        }
+        var joints: [(point: MapPoint, across: MapPoint)] = []
+        var used = Set<Int>()
+        for i in ends.indices where !used.contains(i) {
+            let meeting = ends.indices.filter { j in
+                j > i && !used.contains(j)
+                    && hypot(ends[j].point.x - ends[i].point.x, ends[j].point.y - ends[i].point.y) <= tolerance
+            }
+            guard let j = meeting.first else { continue }
+            used.formUnion(meeting)
+            // The wall runs along a - b through the joint; the tick crosses it.
+            let a = ends[i].inward, b = ends[j].inward
+            let along = MapPoint(x: a.x - b.x, y: a.y - b.y)
+            let length = hypot(along.x, along.y)
+            let across = length > 1e-9
+                ? MapPoint(x: -along.y / length, y: along.x / length)
+                : MapPoint(x: -a.y, y: a.x)
+            joints.append((ends[i].point, across))
+        }
+        return joints
+    }
+
+    private static func direction(from a: MapPoint, to b: MapPoint) -> MapPoint {
+        let length = hypot(b.x - a.x, b.y - a.y)
+        return MapPoint(x: (b.x - a.x) / length, y: (b.y - a.y) / length)
+    }
+
     /// Midpoint along the polyline's length (for labels).
     public static func midpoint(of polyline: [MapPoint]) -> MapPoint? {
         guard let first = polyline.first else { return nil }

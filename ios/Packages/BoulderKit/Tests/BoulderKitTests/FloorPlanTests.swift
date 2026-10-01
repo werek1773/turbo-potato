@@ -36,6 +36,34 @@ struct FloorPlanTests {
         #expect(plan.labels.isEmpty)
     }
 
+    @Test func jointsMarkWhereWallsMeet() {
+        // Three sectors end to end, along the top and down past a corner; a
+        // wall standing apart and a stray single point add nothing.
+        let lines = [
+            [MapPoint(x: 0, y: 0), MapPoint(x: 10, y: 0)],
+            [MapPoint(x: 10, y: 0), MapPoint(x: 20, y: 0), MapPoint(x: 20, y: 10)],
+            [MapPoint(x: 20, y: 10), MapPoint(x: 20, y: 20)],
+            [MapPoint(x: 40, y: 0), MapPoint(x: 50, y: 0)],
+            [MapPoint(x: 10, y: 0)],
+        ]
+        let joints = PlanGeometry.joints(of: lines, tolerance: 0.5)
+        #expect(joints.map { $0.point } == [MapPoint(x: 10, y: 0), MapPoint(x: 20, y: 10)])
+        // The tick crosses the wall: upright on the top, level on the side.
+        #expect(joints.map { $0.across } == [MapPoint(x: 0, y: -1), MapPoint(x: 1, y: 0)])
+    }
+
+    @Test func aCornerJointTicksAlongTheBisector() throws {
+        // Ends a hair apart still meet.
+        let lines = [
+            [MapPoint(x: 0, y: 0), MapPoint(x: 10, y: 0)],
+            [MapPoint(x: 10, y: 0.2), MapPoint(x: 10, y: 10)],
+        ]
+        let joint = try #require(PlanGeometry.joints(of: lines, tolerance: 0.5).first)
+        #expect(joint.point == MapPoint(x: 10, y: 0))
+        #expect(abs(abs(joint.across.x) - 0.5.squareRoot()) < 1e-9)
+        #expect(abs(abs(joint.across.y) - 0.5.squareRoot()) < 1e-9)
+    }
+
     @Test func pointsAlongAWallFaceTheFloor() throws {
         // A wall walked left to right along the top: the floor is below it.
         let wall = [MapPoint(x: 0, y: 0), MapPoint(x: 10, y: 0), MapPoint(x: 10, y: 10)]

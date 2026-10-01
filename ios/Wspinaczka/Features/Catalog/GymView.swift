@@ -135,9 +135,9 @@ struct GymView: View {
     }
 }
 
-/// The gym's name and one sentence on what matters today: the next reset
-/// and what is new since the last visit. Both are links: the reset shows its
-/// wall on the map, the new problems filter the map.
+/// The gym's name and one sentence on what matters today: the walls reset
+/// next and what is new since the last visit. Both are links: each wall
+/// shows itself on the map, the new problems filter the map.
 private struct GymHeader: View {
     @Bindable var catalog: GymCatalog
     let onShowSector: (Sector) -> Void
@@ -168,9 +168,14 @@ private struct GymHeader: View {
 
     private var sentence: AttributedString? {
         var parts: [AttributedString] = []
-        if let reset = catalog.upcomingResets.first {
-            var part = AttributedString("Przykrętka \(ResetBadge.relative(reset.daysLeft, date: reset.date)): ")
-            part += link(reset.sector.name, to: "reset")
+        if let next = catalog.upcomingResets.first {
+            // Every wall reset that day: "Połóg i Trójkąt".
+            let walls = catalog.upcomingResets.filter { $0.date == next.date }.map(\.sector)
+            var part = AttributedString("Przykrętka \(ResetBadge.relative(next.daysLeft, date: next.date)): ")
+            for (index, sector) in walls.enumerated() {
+                if index > 0 { part += AttributedString(index == walls.count - 1 ? " i " : ", ") }
+                part += link(sector.name, to: "reset/\(sector.id.uuidString)")
+            }
             part += AttributedString(".")
             parts.append(part)
         }
@@ -193,7 +198,8 @@ private struct GymHeader: View {
     private func handle(_ url: URL) {
         switch url.host() {
         case "reset":
-            if let sector = catalog.upcomingResets.first?.sector { onShowSector(sector) }
+            let id = UUID(uuidString: url.lastPathComponent)
+            if let sector = catalog.sectors.first(where: { $0.id == id }) { onShowSector(sector) }
         case "new":
             catalog.filter.gradeOrders = nil
             catalog.filter.setAfter = catalog.filter.setAfter == nil ? catalog.lastVisit : nil
