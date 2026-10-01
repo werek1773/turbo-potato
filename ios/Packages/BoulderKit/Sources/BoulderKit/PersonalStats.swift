@@ -80,3 +80,35 @@ public enum PersonalStats {
         return streak
     }
 }
+
+/// Summary of one climbing day, shown on top of "Podsumuj sesję".
+public struct DaySummary: Hashable, Sendable {
+    public let tops: Int
+    public let flashes: Int
+    public let projects: Int
+    /// Hardest grade topped that day (by sort order).
+    public let hardestTop: Grade?
+
+    public var logged: Int { tops + flashes + projects }
+
+    public static func of(_ ascents: [Ascent], grades: [UUID: Grade]) -> DaySummary {
+        let topped = ascents.filter(\.result.isTop)
+        let hardest = topped
+            .compactMap { grades[$0.gradeIdSnapshot] }
+            .max { $0.sortOrder < $1.sortOrder }
+        return DaySummary(
+            tops: ascents.filter { $0.result == .top }.count,
+            flashes: ascents.filter { $0.result == .flash }.count,
+            projects: ascents.filter { $0.result == .project }.count,
+            hardestTop: hardest
+        )
+    }
+
+    /// Problems tried before `day` cannot be flashed on `day`.
+    public static func flashableProblemIds(
+        problemIds: [UUID], history: [Ascent], day: LocalDate
+    ) -> Set<UUID> {
+        let triedBefore = Set(history.filter { $0.localDate < day }.map(\.problemId))
+        return Set(problemIds.filter { !triedBefore.contains($0) })
+    }
+}

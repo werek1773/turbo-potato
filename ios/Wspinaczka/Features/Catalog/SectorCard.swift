@@ -104,6 +104,8 @@ struct ProblemPin: View {
     var label: String?
     var isHighlighted = true
     var isTopped = false
+    /// Result logged in the session being summarized.
+    var sessionResult: AscentResult?
 
     private var ink: Color { color == .white || color == .yellow ? .black : .white }
 
@@ -123,8 +125,19 @@ struct ProblemPin: View {
                         .foregroundStyle(ink)
                 }
             }
+            .overlay(alignment: .topTrailing) {
+                if let sessionResult {
+                    Image(systemName: sessionResult.symbol)
+                        .font(.system(size: 9, weight: .black))
+                        .foregroundStyle(.black)
+                        .frame(width: 16, height: 16)
+                        .background(sessionResult.tint, in: Circle())
+                        .overlay(Circle().stroke(.white, lineWidth: 1.5))
+                        .offset(x: 7, y: -7)
+                }
+            }
             .shadow(radius: 2)
-            .opacity(isHighlighted ? 1 : 0.25)
+            .opacity(isHighlighted || sessionResult != nil ? 1 : 0.25)
             .accessibilityLabel("Problem \(label.map { "\($0), " } ?? "")\(color.polishName)\(isTopped ? ", zrobiony" : "")")
     }
 }

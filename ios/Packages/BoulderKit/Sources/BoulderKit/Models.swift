@@ -318,3 +318,27 @@ public struct CreatedInvite: Hashable, Codable, Sendable {
         case expiresAt = "expires_at"
     }
 }
+
+/// Private wellbeing entry of a session (health data, explicit consent).
+public struct SessionWellbeing: Hashable, Codable, Sendable {
+    public let sessionId: UUID
+    public var energy: Int?
+    public var rpe: Int?
+    public var skin: SkinState?
+    public var painAreas: [BodyArea]
+
+    public init(sessionId: UUID, energy: Int? = nil, rpe: Int? = nil,
+                skin: SkinState? = nil, painAreas: [BodyArea] = []) {
+        self.sessionId = sessionId
+        self.energy = energy
+        self.rpe = rpe
+        self.skin = skin
+        self.painAreas = painAreas
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case energy, rpe, skin
+        case sessionId = "session_id"
+        case painAreas = "pain_areas"
+    }
+}

@@ -52,7 +52,7 @@ struct MainTabView: View {
                 GymListView()
             }
             Tab("Sesja", systemImage: "checklist") {
-                SessionPlaceholderView()
+                SessionView()
             }
             Tab("Profil", systemImage: "person.crop.circle") {
                 ProfileView()
