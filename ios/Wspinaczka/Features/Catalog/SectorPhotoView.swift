@@ -51,7 +51,7 @@ struct ProblemPin: View {
         Circle()
             .fill(color.swatch)
             .frame(width: 26, height: 26)
-            .overlay(Circle().stroke(isTopped ? Color.green : .white, lineWidth: isTopped ? 3 : 2))
+            .overlay(Circle().stroke(isTopped ? Palette.moss : .white, lineWidth: isTopped ? 3 : 2))
             .overlay {
                 if let label {
                     Text(label)
@@ -65,13 +65,9 @@ struct ProblemPin: View {
             }
             .overlay(alignment: .topTrailing) {
                 if let sessionResult {
-                    Image(systemName: sessionResult.symbol)
-                        .font(.system(size: 9, weight: .black))
-                        .foregroundStyle(.black)
-                        .frame(width: 16, height: 16)
-                        .background(sessionResult.tint, in: Circle())
-                        .overlay(Circle().stroke(.white, lineWidth: 1.5))
-                        .offset(x: 7, y: -7)
+                    Pictogram(kind: sessionResult.pictogram, size: 18)
+                        .background(Palette.paper, in: Circle())
+                        .offset(x: 8, y: -8)
                 }
             }
             .shadow(radius: 2)

@@ -9,10 +9,10 @@ struct ResetBadge: View {
         Label {
             Text(text)
         } icon: {
-            Image(systemName: "arrow.triangle.2.circlepath")
+            Pictogram(kind: .reset, size: 18)
         }
         .font(.subheadline.weight(.semibold))
-        .foregroundStyle(reset.daysLeft <= 2 ? Palette.mustard : .secondary)
+        .foregroundStyle(reset.daysLeft <= 2 ? Palette.mustardText : Palette.muted)
     }
 
     private var text: String {
@@ -34,34 +34,6 @@ struct ResetBadge: View {
 
     static func dayText(_ date: LocalDate) -> String {
         date.date(in: .current).formatted(.dateTime.day().month(.abbreviated))
-    }
-}
-
-/// Top of the gym screen: what is about to disappear.
-struct UpcomingResetsBanner: View {
-    let resets: [UpcomingReset]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("Wkrótce przykrętki", systemImage: "calendar.badge.exclamationmark")
-                .font(.headline)
-            ForEach(resets) { reset in
-                HStack {
-                    Text(reset.sector.name).fontWeight(.medium)
-                    Spacer()
-                    Text(ResetBadge.relative(reset.daysLeft, date: reset.date))
-                        .foregroundStyle(reset.daysLeft <= 2 ? Palette.mustard : .secondary)
-                    if reset.notTopped > 0 {
-                        Text("· \(reset.notTopped) do zrobienia")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .font(.subheadline)
-            }
-        }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .glassEffect(.regular, in: .rect(cornerRadius: 16))
     }
 }
 

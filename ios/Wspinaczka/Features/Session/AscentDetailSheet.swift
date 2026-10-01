@@ -82,9 +82,9 @@ struct AscentDetailSheet: View {
                                     Text(limiter.polishName)
                                         .font(.subheadline)
                                         .frame(maxWidth: .infinity, minHeight: 34)
-                                        .background(selected ? Palette.chartreuse.opacity(0.3) : Color.secondary.opacity(0.1),
+                                        .background(selected ? Palette.mat : Color.secondary.opacity(0.1),
                                                     in: Capsule())
-                                        .overlay(Capsule().stroke(selected ? Palette.olive : .clear, lineWidth: 1.5))
+                                        .overlay(Capsule().stroke(selected ? Palette.moss : .clear, lineWidth: 1.5))
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityAddTraits(selected ? .isSelected : [])

@@ -23,75 +23,44 @@ struct GymView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                if !catalog.upcomingResets.isEmpty {
-                    UpcomingResetsBanner(resets: catalog.upcomingResets)
-                }
-                if !catalog.coverage.isEmpty {
-                    GradeFilterBar(catalog: catalog)
-                }
-                if let plan = catalog.gym.floorPlan {
-                    GymMapView(
-                        plan: plan,
-                        sectors: catalog.sectors,
-                        style: { catalog.mapStyle(for: $0) },
-                        dots: { catalog.mapDots(for: $0) },
-                        selection: $selection.animation(.snappy)
-                    )
-                    .padding(.vertical, 4)
-
-                    if let sector = selectedSector {
-                        SectorPeekCard(catalog: catalog, sector: sector) {
-                            openSector = SectorRoute(id: sector.id)
-                        }
-                        .matchedTransitionSource(id: sector.id, in: zoom)
-                        .id(sector.id)
-                        .transition(.asymmetric(
-                            insertion: .move(edge: .bottom).combined(with: .opacity),
-                            removal: .opacity
-                        ))
-                    } else if !catalog.sectors.isEmpty {
-                        Label("Dotknij ściany", systemImage: "hand.tap")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity)
-                            .transition(.opacity)
-                    }
-                    DisclosureGroup("Wszystkie sektory") {
-                        SectorList(catalog: catalog) { openSector = SectorRoute(id: $0.id) }
-                            .padding(.top, 8)
-                    }
-                    .tint(Palette.ink)
-                } else {
-                    SectorList(catalog: catalog) { openSector = SectorRoute(id: $0.id) }
-                }
-            }
-            .padding()
+            content
+                .padding()
         }
         .canvasBackground()
         .overlay {
             if catalog.sectors.isEmpty {
                 if catalog.isLoading {
-                    HoldMark(motion: .working).frame(width: 44)
+                    DrawingView(drawing: .grip)
+                        .frame(width: 140)
                 } else {
-                    ContentUnavailableView(
-                        "Brak sektorów",
-                        systemImage: "square.grid.2x2",
-                        description: Text("Routesetterzy jeszcze nie dodali sektorów tej ścianki.")
-                    )
+                    VStack(spacing: 8) {
+                        DrawingView(drawing: .chalk)
+                            .frame(height: 140)
+                        Text("Brak sektorów")
+                            .font(.display(.title3))
+                        Text("Routesetterzy jeszcze nie dodali sektorów tej ścianki.")
+                            .foregroundStyle(Palette.muted)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(32)
                 }
             }
         }
         .navigationTitle(catalog.gym.name)
+        .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(item: $openSector) { route in
             SectorDetailView(catalog: catalog, sectorId: route.id)
                 .navigationTransition(.zoom(sourceID: route.id, in: zoom))
         }
         .toolbar {
+            // The header below shows the name; the bar keeps only actions.
+            ToolbarItem(placement: .principal) { EmptyView() }
             if app.access.isManager(of: catalog.gym.id) {
-                Button("Dodaj sektor", systemImage: "plus") {
-                    newSectorArea = catalog.areas.last?.name ?? ""
-                    isAddingSector = true
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Dodaj sektor", systemImage: "plus") {
+                        newSectorArea = catalog.areas.last?.name ?? ""
+                        isAddingSector = true
+                    }
                 }
             }
         }
@@ -114,8 +83,134 @@ struct GymView: View {
         .refreshable { await reload() }
     }
 
+
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            GymHeader(catalog: catalog) { sector in
+                withAnimation(.snappy) { selection = sector.id }
+            }
+            if !catalog.coverage.isEmpty {
+                GradeFilterBar(catalog: catalog)
+            }
+            if let plan = catalog.gym.floorPlan {
+                GymMapView(
+                    plan: plan,
+                    sectors: catalog.sectors,
+                    style: { catalog.mapStyle(for: $0) },
+                    dots: { catalog.mapDots(for: $0) },
+                    selection: $selection.animation(.snappy)
+                )
+                .padding(.vertical, 4)
+
+                if let sector = selectedSector {
+                    SectorPeekCard(catalog: catalog, sector: sector) {
+                        openSector = SectorRoute(id: sector.id)
+                    }
+                    .matchedTransitionSource(id: sector.id, in: zoom)
+                    .id(sector.id)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .bottom).combined(with: .opacity),
+                        removal: .opacity
+                    ))
+                } else if !catalog.sectors.isEmpty {
+                    Label("Dotknij ściany", systemImage: "hand.tap")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .transition(.opacity)
+                }
+                DisclosureGroup("Wszystkie sektory") {
+                    SectorList(catalog: catalog) { openSector = SectorRoute(id: $0.id) }
+                        .padding(.top, 8)
+                }
+                .tint(Palette.ink)
+            } else {
+                SectorList(catalog: catalog) { openSector = SectorRoute(id: $0.id) }
+            }
+        }
+    }
+
     private func reload() async {
         do { try await catalog.load() } catch { app.report(error) }
+    }
+}
+
+/// Name, address and what matters today: the next reset and new problems.
+private struct GymHeader: View {
+    @Bindable var catalog: GymCatalog
+    let onShowSector: (Sector) -> Void
+
+    private var newSinceVisit: Int? {
+        guard let lastVisit = catalog.lastVisit else { return nil }
+        return catalog.problems.filter { ClimbingDay.localDate(for: $0.setAt, in: catalog.gym.timeZone) > lastVisit }.count
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                if let address = catalog.gym.address {
+                    Text([catalog.gym.city, address].compactMap { $0 }.joined(separator: " · "))
+                        .font(.subheadline)
+                        .foregroundStyle(Palette.muted)
+                }
+                Text(catalog.gym.name)
+                    .font(.display(.largeTitle))
+                    .foregroundStyle(Palette.ink)
+            }
+            HStack(spacing: 8) {
+                if let reset = catalog.upcomingResets.first {
+                    Tile(title: "Przykrętka",
+                         value: "\(reset.sector.name) · \(ResetBadge.relative(reset.daysLeft, date: reset.date))",
+                         valueColor: Palette.mustardText, isOn: false) {
+                        onShowSector(reset.sector)
+                    }
+                } else {
+                    Tile(title: "Przykrętka", value: "Brak zapowiedzi", valueColor: Palette.muted, isOn: false, action: nil)
+                }
+                if let newCount = newSinceVisit, let lastVisit = catalog.lastVisit {
+                    Tile(title: "Nowe od ostatniej wizyty",
+                         value: newCount == 1 ? "1 problem" : "\(newCount) problemów",
+                         valueColor: Palette.ink, isOn: catalog.filter.setAfter != nil) {
+                        catalog.filter.setAfter = catalog.filter.setAfter == nil ? lastVisit : nil
+                    }
+                } else {
+                    Tile(title: "Na ścianach", value: "\(catalog.problems.count) problemów",
+                         valueColor: Palette.ink, isOn: false, action: nil)
+                }
+            }
+        }
+    }
+
+    private struct Tile: View {
+        let title: String
+        let value: String
+        let valueColor: Color
+        let isOn: Bool
+        let action: (() -> Void)?
+
+        var body: some View {
+            Button {
+                action?()
+            } label: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.caption)
+                        .foregroundStyle(Palette.muted)
+                    Text(value)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(valueColor)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
+                .background(isOn ? Palette.mat : Palette.paper, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(isOn ? Palette.moss : Palette.line))
+            }
+            .buttonStyle(.plain)
+            .disabled(action == nil)
+        }
     }
 }
 
@@ -135,7 +230,7 @@ private struct SectorPeekCard: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
                 Text(sector.name)
-                    .font(.serif(.title2))
+                    .font(.display(.title3))
                 Spacer()
                 if count > 0 {
                     Text("\(topped) z \(count) zrobione")
@@ -178,7 +273,7 @@ private struct SectorList: View {
                 VStack(alignment: .leading, spacing: 0) {
                     if let name = area.name {
                         Text(name)
-                            .font(.serif(.title3))
+                            .font(.display(.title3))
                             .padding(.bottom, 6)
                     }
                     ForEach(area.sectors) { sector in
@@ -212,7 +307,7 @@ private struct SectorRow: View {
                 if let reset = catalog.upcomingReset(for: sector) {
                     Text("Przykrętka \(ResetBadge.relative(reset.daysLeft, date: reset.date))")
                         .font(.caption)
-                        .foregroundStyle(reset.daysLeft <= 2 ? Palette.mustard : .secondary)
+                        .foregroundStyle(reset.daysLeft <= 2 ? Palette.mustardText : Palette.muted)
                 } else if catalog.photo(of: sector) == nil {
                     Text("Brak zdjęcia").font(.caption).foregroundStyle(.secondary)
                 }

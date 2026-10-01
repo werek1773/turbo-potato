@@ -19,7 +19,8 @@ struct MapDot: Identifiable {
 }
 
 /// The gym drawn like its reset board, without names: mats, walls in walking
-/// order, every problem as a dot of its hold color, and the doors.
+/// order, every problem as a dot of its hold color, and the doors. Drawing in
+/// and filtering run on the 8 fps clock; selection is smooth.
 struct GymMapView: View {
     let plan: FloorPlan
     let sectors: [Sector]
@@ -27,75 +28,97 @@ struct GymMapView: View {
     let dots: (Sector) -> [MapDot]
     @Binding var selection: UUID?
 
-    @State private var isDrawn = false
+    @State private var drawStart = Date()
+    @State private var filterChange = Date.distantPast
+    @State private var changedDots: Set<UUID> = []
+    @State private var isTicking = true
+    @State private var tickGeneration = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var mapped: [(sector: Sector, path: [MapPoint])] {
         sectors.compactMap { sector in sector.mapPath.map { (sector, $0) } }
     }
 
+    /// Frames until the last wall is drawn and its dots have settled.
+    private var drawFrames: Int { Int(Double(max(mapped.count - 1, 0)) * 0.9) + 6 }
+
     var body: some View {
-        GeometryReader { proxy in
-            let size = proxy.size
-            ZStack(alignment: .topLeading) {
-                ForEach(plan.mats.indices, id: \.self) { index in
-                    PlanShape(points: plan.mats[index], isClosed: true)
-                        .fill(Palette.mat)
-                        .opacity(isDrawn ? 1 : 0)
-                        .animation(.easeOut(duration: 0.5), value: isDrawn)
-                }
-                ForEach(plan.outlines.indices, id: \.self) { index in
-                    PlanShape(points: plan.outlines[index])
-                        .stroke(Palette.line, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
-                }
-                ForEach(plan.walls.indices, id: \.self) { index in
-                    PlanShape(points: plan.walls[index])
-                        .stroke(Palette.line, style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
-                }
-                ForEach(Array(mapped.enumerated()), id: \.element.sector.id) { order, item in
-                    wall(item.sector, path: item.path, order: order)
-                    holds(item.sector, path: item.path, order: order, size: size)
-                }
-                ForEach(plan.entrances, id: \.self) { door in
-                    Circle()
-                        .fill(Palette.door)
-                        .frame(width: 22, height: 22)
-                        .overlay {
-                            Image(systemName: "door.left.hand.open")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(.white)
+        let allDots = mapped.map { (sector: $0.sector, dots: dots($0.sector)) }
+        let matching = Set(allDots.flatMap(\.dots).filter(\.isMatching).map(\.id))
+        TimelineView(.animation(minimumInterval: 1 / StopMotion.fps, paused: !isTicking || reduceMotion)) { timeline in
+            let frame = reduceMotion ? 1000 : StopMotion.frame(at: timeline.date, since: drawStart)
+            let sinceFilter = StopMotion.frame(at: timeline.date, since: filterChange)
+            GeometryReader { proxy in
+                let size = proxy.size
+                ZStack(alignment: .topLeading) {
+                    ForEach(plan.mats.indices, id: \.self) { index in
+                        PlanShape(points: plan.mats[index], isClosed: true).fill(Palette.mat)
+                    }
+                    ForEach(plan.outlines.indices, id: \.self) { index in
+                        PlanShape(points: plan.outlines[index])
+                            .stroke(Palette.line, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+                    }
+                    ForEach(plan.walls.indices, id: \.self) { index in
+                        PlanShape(points: plan.walls[index])
+                            .stroke(Palette.line, style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
+                    }
+                    ForEach(Array(allDots.enumerated()), id: \.element.sector.id) { order, item in
+                        if let path = item.sector.mapPath {
+                            wall(item.sector, path: path, order: order, frame: frame)
+                            holds(item.dots, path: path, order: order, frame: frame, sinceFilter: sinceFilter, size: size)
                         }
-                        .scaleEffect(isDrawn ? 1 : 0.2)
-                        .opacity(isDrawn ? 1 : 0)
-                        .animation(.spring(duration: 0.5, bounce: 0.5), value: isDrawn)
-                        .position(x: door.x * size.width, y: door.y * size.height)
-                        .accessibilityLabel("Wejście")
+                    }
+                    ForEach(plan.entrances, id: \.self) { door in
+                        DoorMarker()
+                            .frame(width: 24, height: 24)
+                            .position(x: door.x * size.width, y: door.y * size.height)
+                    }
                 }
-            }
-            .contentShape(Rectangle())
-            .onTapGesture(coordinateSpace: .local) { location in
-                select(at: location, size: size)
+                .contentShape(Rectangle())
+                .onTapGesture(coordinateSpace: .local) { location in
+                    select(at: location, size: size)
+                }
             }
         }
         .aspectRatio(plan.aspect, contentMode: .fit)
-        .onAppear { isDrawn = true }
+        .onAppear {
+            drawStart = .now
+            tick(for: drawFrames)
+        }
+        .onChange(of: matching) { old, new in
+            changedDots = old.symmetricDifference(new)
+            filterChange = .now
+            tick(for: 3)
+        }
         .sensoryFeedback(.selection, trigger: selection)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Plan ścianki")
     }
 
+    /// Runs the clock for a few frames, then lets it rest.
+    private func tick(for frames: Int) {
+        tickGeneration += 1
+        let generation = tickGeneration
+        isTicking = true
+        Task {
+            try? await Task.sleep(for: .seconds(Double(frames + 1) / StopMotion.fps))
+            if generation == tickGeneration { isTicking = false }
+        }
+    }
+
     @ViewBuilder
-    private func wall(_ sector: Sector, path: [MapPoint], order: Int) -> some View {
+    private func wall(_ sector: Sector, path: [MapPoint], order: Int, frame: Int) -> some View {
         let wallStyle = style(sector)
         let isSelected = selection == sector.id
         let isFaded = selection != nil && !isSelected
+        // Three frames per wall, each starting a little after the previous one.
+        let drawn = min(1, max(0, (Double(frame) - Double(order) * 0.9) / 3))
         PlanShape(points: path)
-            .trim(from: 0, to: isDrawn ? 1 : 0)
-            .stroke(isSelected ? Palette.olive : wallStyle.color,
+            .trim(from: 0, to: drawn)
+            .stroke(isSelected ? Palette.mossDark : wallStyle.color,
                     style: StrokeStyle(lineWidth: isSelected ? 10 : 6, lineCap: .round, lineJoin: .round,
                                        dash: wallStyle.dashed && !isSelected ? [5, 7] : []))
-            .opacity(wallStyle.isDimmed || isFaded ? 0.35 : 1)
-            .animation(.easeOut(duration: 0.4).delay(reduceMotion ? 0 : 0.15 + Double(order) * 0.08), value: isDrawn)
+            .opacity(drawn == 0 ? 0 : (wallStyle.isDimmed || isFaded ? 0.35 : 1))
             .animation(.snappy, value: selection)
             .accessibilityElement()
             .accessibilityLabel(sector.name)
@@ -103,24 +126,28 @@ struct GymMapView: View {
             .accessibilityAction { selection = sector.id }
     }
 
-    private func holds(_ sector: Sector, path: [MapPoint], order: Int, size: CGSize) -> some View {
+    private func holds(_ dots: [MapDot], path: [MapPoint], order: Int, frame: Int, sinceFilter: Int, size: CGSize) -> some View {
         let scaled = path.map { MapPoint(x: $0.x * size.width, y: $0.y * size.height) }
         let offset = 11.0
-        return ForEach(dots(sector)) { dot in
+        return ForEach(dots) { dot in
             if let spot = PlanGeometry.point(along: scaled, at: dot.fraction) {
+                // Pop in: nothing, one frame too big, then settled.
+                let appear = Double(frame) - (Double(order) * 0.9 + 2 + dot.fraction * 2)
+                let scale = appear < 0 ? 0 : (appear < 1 ? 1.5 : 1)
+                // Filter: two steps, half-way then the final opacity.
+                let target = dot.isMatching ? 1.0 : 0.12
+                let opacity = changedDots.contains(dot.id) && sinceFilter < 1 ? 0.55 : target
                 Circle()
                     .fill(dot.color.swatch)
                     .frame(width: 8, height: 8)
                     .overlay {
-                        Circle().stroke(dot.isTopped ? Palette.ink : Palette.ink.opacity(dot.color == .white ? 0.3 : 0),
-                                        lineWidth: dot.isTopped ? 1.8 : 0.6)
+                        Circle()
+                            .stroke(dot.isTopped ? Palette.ink : Palette.ink.opacity(dot.color == .white ? 0.3 : 0),
+                                    lineWidth: dot.isTopped ? 1.8 : 0.6)
                             .padding(dot.isTopped ? -1.5 : 0)
                     }
-                    .scaleEffect(isDrawn ? (dot.isMatching ? 1 : 0.5) : 0)
-                    .opacity(dot.isMatching ? 1 : 0.12)
-                    .animation(.spring(duration: 0.45, bounce: 0.55)
-                        .delay(reduceMotion ? 0 : 0.35 + Double(order) * 0.08 + dot.fraction * 0.2), value: isDrawn)
-                    .animation(.smooth, value: dot.isMatching)
+                    .scaleEffect(scale)
+                    .opacity(opacity)
                     .position(x: spot.point.x + spot.normal.x * offset, y: spot.point.y + spot.normal.y * offset)
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
@@ -154,12 +181,10 @@ struct PlanShape: Shape {
     }
 }
 
-/// The plan alone, drawing itself in: used on gym cards.
+/// The plan alone, small and still: used on gym cards.
 struct MiniMapView: View {
     let plan: FloorPlan
     let paths: [[MapPoint]]
-
-    @State private var isDrawn = false
 
     var body: some View {
         ZStack {
@@ -168,13 +193,10 @@ struct MiniMapView: View {
             }
             ForEach(paths.indices, id: \.self) { index in
                 PlanShape(points: paths[index])
-                    .trim(from: 0, to: isDrawn ? 1 : 0)
-                    .stroke(Palette.chartreuse, style: StrokeStyle(lineWidth: 3.5, lineCap: .round, lineJoin: .round))
-                    .animation(.easeOut(duration: 0.35).delay(0.2 + Double(index) * 0.06), value: isDrawn)
+                    .stroke(Palette.moss, style: StrokeStyle(lineWidth: 3.5, lineCap: .round, lineJoin: .round))
             }
         }
         .aspectRatio(plan.aspect, contentMode: .fit)
-        .onAppear { isDrawn = true }
         .accessibilityHidden(true)
     }
 }

@@ -83,6 +83,14 @@ extension AscentResult {
         }
     }
 
+    var pictogram: Pictogram.Kind {
+        switch self {
+        case .flash: .flash
+        case .top: .top
+        case .project: .project
+        }
+    }
+
     var symbol: String {
         switch self {
         case .flash: "bolt.fill"
@@ -93,9 +101,9 @@ extension AscentResult {
 
     var tint: Color {
         switch self {
-        case .flash: .yellow
-        case .top: .green
-        case .project: .orange
+        case .flash: Palette.coral
+        case .top: Palette.moss
+        case .project: Palette.plum
         }
     }
 }
