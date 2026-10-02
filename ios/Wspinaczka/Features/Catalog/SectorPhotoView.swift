@@ -51,7 +51,7 @@ struct ProblemPin: View {
         Circle()
             .fill(color.swatch)
             .frame(width: 26, height: 26)
-            .overlay(Circle().stroke(isTopped ? Palette.moss : .white, lineWidth: isTopped ? 3 : 2))
+            .overlay(Circle().stroke(isTopped ? Palette.sky : .white, lineWidth: isTopped ? 3 : 2))
             .overlay {
                 if let label {
                     Text(label)

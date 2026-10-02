@@ -101,8 +101,8 @@ extension AscentResult {
 
     var tint: Color {
         switch self {
-        case .flash: Palette.coral
-        case .top: Palette.moss
+        case .flash: Palette.sun
+        case .top: Palette.sky
         case .project: Palette.plum
         }
     }
