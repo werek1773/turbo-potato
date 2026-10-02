@@ -4,6 +4,7 @@ import SwiftUI
 /// How a sector's wall is painted on the map.
 struct SectorMapStyle {
     var color: Color
+    var dashed = false
     var isDimmed = false
     /// A reset is announced within two days: the wall and its field get a
     /// mustard wash, and a drill stands outside the wall.
@@ -154,7 +155,8 @@ struct GymMapView: View {
             PlanShape(points: path, boilFrame: reduceMotion ? nil : frame, salt: Double(order * 11))
                 .trim(from: 0, to: drawn)
                 .stroke(Palette.ink,
-                        style: StrokeStyle(lineWidth: Self.inkWidth, lineCap: .round, lineJoin: .round))
+                        style: StrokeStyle(lineWidth: Self.inkWidth, lineCap: .round, lineJoin: .round,
+                                           dash: wallStyle.dashed ? [4, 6] : []))
                 .opacity(drawn == 0 ? 0 : (wallStyle.isDimmed ? 0.35 : (isFaded ? 0.5 : 1)))
         }
         .animation(.snappy, value: selection)
