@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// The app's drawn icons: one hand, a thin rounded ink line and one bright
-/// fill each, on a 24×24 grid. The three results are discs of one size.
+/// fill each, on a 24×24 grid. The three results are discs of one size with
+/// a light-to-deep gradient: lagoon flash, meadow top, orchid project.
 ///
 /// Before adding or changing one, look at it at 18 pt and ask what else it
 /// could be: a bucket reads as a bin, a dot in an oval as an eye, a dome with
@@ -36,6 +37,14 @@ struct Pictogram: View {
         Path(ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2))
     }
 
+    /// The result disc: a vertical gradient from light to deep, ink edge.
+    private static func disc(_ light: Color, _ deep: Color, in context: inout GraphicsContext) {
+        let path = circle(12, 12, 8.6)
+        context.fill(path, with: .linearGradient(Gradient(colors: [light, deep]),
+                                                  startPoint: CGPoint(x: 12, y: 3.4), endPoint: CGPoint(x: 12, y: 20.6)))
+        context.stroke(path, with: .color(ink), style: line)
+    }
+
     /// A full circle as two half circles, so halves can be filled separately.
     private static func rightHalf(_ cx: CGFloat, _ cy: CGFloat, _ r: CGFloat) -> Path {
         let k = r * 0.5523
@@ -68,8 +77,7 @@ struct Pictogram: View {
             floor.addLine(to: CGPoint(x: 20, y: 20.5))
             context.stroke(floor, with: .color(ink), style: line)
         case .flash:
-            // Same disc as top and project, so the three results weigh the same.
-            outline(circle(12, 12, 8.6), fill: Palette.coral, in: &context)
+            disc(Palette.lagoon, Palette.ocean, in: &context)
             var bolt = Path()
             bolt.addLines([CGPoint(x: 12.9, y: 6.9), CGPoint(x: 8.8, y: 12.7), CGPoint(x: 11.6, y: 12.7),
                            CGPoint(x: 10.9, y: 17.1), CGPoint(x: 15.2, y: 11.1), CGPoint(x: 12.4, y: 11.1)])
@@ -77,13 +85,24 @@ struct Pictogram: View {
             context.fill(bolt, with: .color(Palette.paper))
             context.stroke(bolt, with: .color(Palette.paper), style: StrokeStyle(lineWidth: 0.9, lineJoin: .round))
         case .top:
-            outline(circle(12, 12, 8.6), fill: Palette.leaf, in: &context)
-            var check = Path()
-            check.addLines([CGPoint(x: 8.2, y: 12.3), CGPoint(x: 10.8, y: 14.9), CGPoint(x: 15.8, y: 9.5)])
-            context.stroke(check, with: .color(Palette.paper), style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+            // Topped out: a flag planted on the top.
+            disc(Palette.meadow, Palette.grass, in: &context)
+            var pole = Path()
+            pole.move(to: CGPoint(x: 9.6, y: 17.6))
+            pole.addLine(to: CGPoint(x: 9.6, y: 6.4))
+            context.stroke(pole, with: .color(Palette.paper), style: StrokeStyle(lineWidth: 1.8, lineCap: .round))
+            var flag = Path()
+            flag.move(to: CGPoint(x: 9.6, y: 6.6))
+            flag.addCurve(to: CGPoint(x: 15.6, y: 6.9), control1: CGPoint(x: 11.4, y: 5.9), control2: CGPoint(x: 12.8, y: 7.5))
+            flag.addCurve(to: CGPoint(x: 15.7, y: 11.1), control1: CGPoint(x: 15.1, y: 8.5), control2: CGPoint(x: 15.2, y: 9.5))
+            flag.addCurve(to: CGPoint(x: 9.6, y: 10.9), control1: CGPoint(x: 12.9, y: 11.7), control2: CGPoint(x: 11.5, y: 10.1))
+            flag.closeSubpath()
+            context.fill(flag, with: .color(Palette.paper))
+            context.stroke(flag, with: .color(Palette.paper), style: StrokeStyle(lineWidth: 0.8, lineJoin: .round))
         case .project:
             context.fill(circle(12, 12, 8.6), with: .color(Palette.paper))
-            context.fill(rightHalf(12, 12, 8.6), with: .color(Palette.berry))
+            context.fill(rightHalf(12, 12, 8.6), with: .linearGradient(Gradient(colors: [Palette.orchid, Palette.berry]),
+                                                                        startPoint: CGPoint(x: 12, y: 3.4), endPoint: CGPoint(x: 12, y: 20.6)))
             context.stroke(circle(12, 12, 8.6), with: .color(ink), style: line)
         case .session:
             // A boulder topped out, as in the "session saved" drawing: a

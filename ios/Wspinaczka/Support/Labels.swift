@@ -94,16 +94,16 @@ extension AscentResult {
     var symbol: String {
         switch self {
         case .flash: "bolt.fill"
-        case .top: "checkmark"
-        case .project: "hourglass"
+        case .top: "flag.fill"
+        case .project: "circle.righthalf.filled"
         }
     }
 
     var tint: Color {
         switch self {
-        case .flash: Palette.coral
-        case .top: Palette.moss
-        case .project: Palette.plum
+        case .flash: Palette.ocean
+        case .top: Palette.grass
+        case .project: Palette.berry
         }
     }
 }

@@ -27,7 +27,14 @@ enum Palette {
     /// cheerful at 18 pt; white glyphs on them keep at least 3:1.
     static let leaf = Color(hex: 0x7A9A34)
     static let sun = Color(hex: 0xF2B531)
-    static let berry = Color(hex: 0x9E4780)
+    /// The three results, each a light-to-deep gradient so they look alive:
+    /// flash is a Maldives lagoon, top a meadow, project an orchid.
+    static let lagoon = Color(hex: 0x3DD3E3)
+    static let ocean = Color(hex: 0x0A86C2)
+    static let meadow = Color(hex: 0x6BD46A)
+    static let grass = Color(hex: 0x1E9644)
+    static let orchid = Color(hex: 0xD865B4)
+    static let berry = Color(hex: 0x9C3486)
 }
 
 extension Color {
