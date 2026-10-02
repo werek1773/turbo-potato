@@ -55,10 +55,14 @@ struct Pictogram: View {
                             InkPath("M5.2 10.5 C9.5 10.2 14.5 10.8 18.8 10.4 L18.2 20.3 C14 20.6 9.8 20.2 5.8 20.4 Z"),
                             InkPath("M12 14 L12 16.5")])
         case .reset:
-            // A hex key, the tool holds are bolted on with.
+            // A routesetter's cordless drill: what everyone pictures for a reset.
             Drawing(color: Palette.mustard,
-                    blob: InkPath("M5 10 C5 7 8 5.5 11 6.5 C14 7.5 15 11 14 14 C13 17 9 18 7 16.5 C5.5 15 5 12.5 5 10 Z"),
-                    lines: [InkPath("M5.5 3.5 L9 3.5 L9 15 C9 15.5 9.3 15.8 9.8 15.8 L20.5 15.8 L20.5 19.3 L8.5 19.3 C6.8 19.3 5.5 18 5.5 16.3 Z")])
+                    blob: InkPath("M3 10.5 C4 8 9 7.8 12 9 C14.5 10.2 13.8 13.2 11 14.2 C8 15.2 4.5 14.8 3.5 13.3 C2.8 12.4 2.6 11.4 3 10.5 Z"),
+                    lines: [InkPath("M3.6 6.8 L13.8 6.8 C14.8 6.8 15.4 7.4 15.4 8.4 L15.4 11.2 C15.4 12.2 14.8 12.8 13.8 12.8 L3.6 12.8 C2.9 12.8 2.4 12.3 2.4 11.6 L2.4 8 C2.4 7.3 2.9 6.8 3.6 6.8 Z"),
+                            InkPath("M15.4 8.5 L17.8 8.5 L17.8 11.1 L15.4 11.1"),
+                            InkPath("M17.8 9.8 L21.6 9.8"),
+                            InkPath("M6.4 12.8 L5.6 18.6 L10.4 18.6 L10.8 12.8"),
+                            InkPath("M4.6 18.6 L11.4 18.6 L11.4 21 L4.6 21 Z")])
         case .chalkBag:
             Drawing(color: Palette.coral,
                     blob: InkPath("M7.5 11 C7 15 7.5 19 10 20 C13 21 16 20 16.8 17.5 C17.5 15 17 12 16.5 10.5 C13 11.5 10 11.5 7.5 11 Z"),
