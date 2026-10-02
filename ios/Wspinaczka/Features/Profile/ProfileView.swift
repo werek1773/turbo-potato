@@ -7,6 +7,7 @@ struct ProfileView: View {
     @State private var isAcceptingInvite = false
     @State private var isDeletingAccount = false
     @State private var exportURL: URL?
+    @AppStorage("appearance") private var appearance = Appearance.system
 
     var body: some View {
         NavigationStack {
@@ -15,6 +16,17 @@ struct ProfileView: View {
                     TextField("Imię lub ksywka", text: $displayName)
                         .textContentType(.nickname)
                         .onSubmit { Task { await app.updateDisplayName(displayName) } }
+                }
+
+                Section("Wygląd") {
+                    Picker("Motyw", selection: $appearance) {
+                        ForEach(Appearance.allCases) { option in
+                            Text(option.polishName).tag(option)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
                 }
 
                 Section {

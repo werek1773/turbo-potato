@@ -4,29 +4,32 @@ import UIKit
 // MARK: - Palette
 
 /// Colors of the green room photo: moss walls, a mustard floor, a plum chair
-/// and a coral vase, on warm paper. The app is light only.
+/// and a coral vase, on warm paper. In the dark the room is lit by a lamp:
+/// near-black olive paper, cream ink, and the same colors a step brighter.
 enum Palette {
-    static let canvas = Color(hex: 0xF7F5EE)
-    static let paper = Color(hex: 0xFFFEFA)
-    static let ink = Color(hex: 0x2A2A22)
-    static let muted = Color(hex: 0x6E6B5F)
-    static let line = Color(hex: 0xE2DFD3)
+    static let canvas = Color(light: 0xF7F5EE, dark: 0x191A15)
+    static let paper = Color(light: 0xFFFEFA, dark: 0x23251E)
+    /// Lines of the drawings and main text: dark ink by day, cream at night.
+    static let ink = Color(light: 0x2A2A22, dark: 0xEDEADF)
+    static let muted = Color(light: 0x6E6B5F, dark: 0xA29F92)
+    static let line = Color(light: 0xE2DFD3, dark: 0x36382F)
     /// The wall color; buttons, walls on the map, selection.
-    static let moss = Color(hex: 0x6B8131)
-    /// Readable green for text and the selected wall.
-    static let mossDark = Color(hex: 0x4E5F22)
-    static let mossLight = Color(hex: 0x93A84B)
+    static let moss = Color(light: 0x6B8131, dark: 0x7F9839)
+    /// Readable green for text and the pressed button: darker than moss by
+    /// day, lighter at night.
+    static let mossDark = Color(light: 0x4E5F22, dark: 0xA8C05A)
+    static let mossLight = Color(light: 0x93A84B, dark: 0x93A84B)
     /// Matted floor on the map, empty bars.
-    static let mat = Color(hex: 0xE3E9CF)
-    static let mustard = Color(hex: 0xD6A12B)
-    /// Mustard dark enough for text ("Przykrętka w czwartek").
-    static let mustardText = Color(hex: 0xA97C14)
-    static let plum = Color(hex: 0x6A3357)
-    static let coral = Color(hex: 0xE2725B)
+    static let mat = Color(light: 0xE3E9CF, dark: 0x2C3322)
+    static let mustard = Color(light: 0xD6A12B, dark: 0xD9A634)
+    /// Mustard readable as text ("Przykrętka w czwartek").
+    static let mustardText = Color(light: 0xA97C14, dark: 0xE2B44C)
+    static let plum = Color(light: 0x6A3357, dark: 0xA0628C)
+    static let coral = Color(light: 0xE2725B, dark: 0xE57B64)
     /// Top: a clear blue, the one cool color in the room.
-    static let sky = Color(hex: 0x3F7FBF)
+    static let sky = Color(light: 0x3F7FBF, dark: 0x5592D0)
     /// Flash: sunny yellow, lighter than mustard so the two never mix up.
-    static let sun = Color(hex: 0xF2C12E)
+    static let sun = Color(light: 0xF2C12E, dark: 0xF2C12E)
 }
 
 extension Color {
@@ -34,6 +37,47 @@ extension Color {
         self.init(red: Double((hex >> 16) & 0xFF) / 255,
                   green: Double((hex >> 8) & 0xFF) / 255,
                   blue: Double(hex & 0xFF) / 255)
+    }
+
+    /// A color that follows the light or dark appearance.
+    init(light: UInt32, dark: UInt32) {
+        self.init(uiColor: UIColor { traits in
+            UIColor(hex: traits.userInterfaceStyle == .dark ? dark : light)
+        })
+    }
+}
+
+extension UIColor {
+    convenience init(hex: UInt32) {
+        self.init(red: CGFloat((hex >> 16) & 0xFF) / 255,
+                  green: CGFloat((hex >> 8) & 0xFF) / 255,
+                  blue: CGFloat(hex & 0xFF) / 255,
+                  alpha: 1)
+    }
+}
+
+// MARK: - Appearance
+
+/// Light, dark, or whatever the phone uses; chosen in the profile.
+enum Appearance: String, CaseIterable, Identifiable {
+    case system, light, dark
+
+    var id: Self { self }
+
+    var polishName: String {
+        switch self {
+        case .system: "Systemowy"
+        case .light: "Jasny"
+        case .dark: "Ciemny"
+        }
+    }
+
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: nil
+        case .light: .light
+        case .dark: .dark
+        }
     }
 }
 

@@ -33,6 +33,7 @@ struct GymMapView: View {
     @State private var filterChange = Date.distantPast
     @State private var changedDots: Set<UUID> = []
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
 
     private var mapped: [(sector: Sector, path: [MapPoint])] {
         sectors.compactMap { sector in sector.mapPath.map { (sector, $0) } }
@@ -136,7 +137,7 @@ struct GymMapView: View {
                     .frame(width: 8, height: 8)
                     .overlay {
                         Circle()
-                            .stroke(dot.isTopped ? Palette.ink : Palette.ink.opacity(dot.color == .white ? 0.3 : 0),
+                            .stroke(dot.isTopped ? Palette.ink : Palette.ink.opacity(blendsIn(dot.color) ? 0.3 : 0),
                                     lineWidth: dot.isTopped ? 1.8 : 0.6)
                             .padding(dot.isTopped ? -1.5 : 0)
                     }
@@ -147,6 +148,11 @@ struct GymMapView: View {
                     .accessibilityHidden(true)
             }
         }
+    }
+
+    /// White holds vanish on the light floor, black ones on the dark one.
+    private func blendsIn(_ color: HoldColor) -> Bool {
+        color == (colorScheme == .dark ? .black : .white)
     }
 
     private func select(at location: CGPoint, size: CGSize) {

@@ -23,6 +23,7 @@ struct WspinaczkaApp: App {
 struct RootView: View {
     @Environment(AppModel.self) private var app
     @AppStorage("hasSeenIntro") private var hasSeenIntro = false
+    @AppStorage("appearance") private var appearance = Appearance.system
     /// The splash gets to finish even when the session is restored instantly.
     @State private var isSplashDone = false
     /// Decided once per launch: the whole climb on the very first launch only.
@@ -47,7 +48,7 @@ struct RootView: View {
         }
         .animation(.smooth(duration: 0.5), value: app.phase)
         .animation(.smooth(duration: 0.5), value: isSplashDone)
-        .preferredColorScheme(.light)
+        .preferredColorScheme(appearance.colorScheme)
         .task {
             // The hand draws itself in 13 frames; give the name a moment after it.
             let duration = isFirstLaunch ? Double(Drawing.grip.drawOnFrames) / StopMotion.fps + 0.9 : 0.8
