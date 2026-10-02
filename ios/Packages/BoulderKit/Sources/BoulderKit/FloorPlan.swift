@@ -103,6 +103,21 @@ public enum PlanGeometry {
         return isInside
     }
 
+    /// Edges that two polygons share, in either direction: the lines between
+    /// neighbouring fields. Each comes once, in the order first met.
+    public static func sharedEdges(of polygons: [[MapPoint]]) -> [[MapPoint]] {
+        var counts: [[MapPoint]: Int] = [:]
+        var order: [[MapPoint]] = []
+        for polygon in polygons where polygon.count > 2 {
+            for (a, b) in zip(polygon, Array(polygon.dropFirst()) + [polygon[0]]) {
+                let edge = (a.x, a.y) < (b.x, b.y) ? [a, b] : [b, a]
+                if counts[edge] == nil { order.append(edge) }
+                counts[edge, default: 0] += 1
+            }
+        }
+        return order.filter { (counts[$0] ?? 0) > 1 }
+    }
+
     /// The sector whose wall is closest to a tap, if within `maxDistance`.
     /// Points are in view coordinates (already scaled by the view size).
     public static func nearest<ID>(

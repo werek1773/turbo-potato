@@ -34,6 +34,14 @@ struct FloorPlanTests {
         #expect(!PlanGeometry.contains(MapPoint(x: 0.5, y: 0.5), in: [MapPoint(x: 0, y: 0), MapPoint(x: 1, y: 1)]))
     }
 
+    @Test func neighbouringFieldsShareOneLine() {
+        let left = [MapPoint(x: 0, y: 0), MapPoint(x: 1, y: 0), MapPoint(x: 1, y: 1), MapPoint(x: 0, y: 1)]
+        let right = [MapPoint(x: 1, y: 0), MapPoint(x: 2, y: 0), MapPoint(x: 2, y: 1), MapPoint(x: 1, y: 1)]
+        let edges = PlanGeometry.sharedEdges(of: [left, right])
+        #expect(edges == [[MapPoint(x: 1, y: 0), MapPoint(x: 1, y: 1)]])
+        #expect(PlanGeometry.sharedEdges(of: [left]).isEmpty)
+    }
+
     @Test func sectorDecodesItsField() throws {
         let json = #"{"id": "6F9619FF-8B86-D011-B42D-00C04FC964FF", "gym_id": "6F9619FF-8B86-D011-B42D-00C04FC964FE", "name": "Połóg", "sort_order": 7, "map_path": [[0.4, 0.88], [0.19, 0.88]], "map_zone": [[0.4, 0.88], [0.19, 0.88], [0.28, 0.77]]}"#
         let sector = try JSONDecoder().decode(Sector.self, from: Data(json.utf8))

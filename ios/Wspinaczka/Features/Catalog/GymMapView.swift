@@ -4,7 +4,6 @@ import SwiftUI
 /// How a sector's wall is painted on the map.
 struct SectorMapStyle {
     var color: Color
-    var dashed = false
     var isDimmed = false
     /// A reset is announced within two days: the wall and its field get a
     /// mustard wash, and a drill stands outside the wall.
@@ -62,6 +61,15 @@ struct GymMapView: View {
                     ForEach(zoned, id: \.sector.id) { item in
                         field(item.sector, zone: item.zone)
                     }
+                    // Thin ink lines between neighbouring fields, like the
+                    // lines across the mat on the reset board.
+                    let dividers = PlanGeometry.sharedEdges(of: zoned.map(\.zone))
+                    ForEach(dividers.indices, id: \.self) { index in
+                        PlanShape(points: dividers[index], boilFrame: reduceMotion ? nil : frame, salt: Double(700 + index * 5))
+                            .stroke(Palette.ink.opacity(0.4), style: StrokeStyle(lineWidth: 1.1, lineCap: .round))
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
+                    }
                     ForEach(plan.outlines.indices, id: \.self) { index in
                         PlanShape(points: plan.outlines[index])
                             .stroke(Palette.line, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
@@ -109,22 +117,19 @@ struct GymMapView: View {
 
     private static let inkWidth: CGFloat = 2.4
 
-    /// A sector's field of mat, cut from its neighbours by a thin gap of
-    /// floor so every field reads as something to tap. Moss when chosen,
-    /// mustard when its wall is reset soon.
+    /// A sector's field of mat: moss when chosen; pale mustard instead of
+    /// the mat (not over it, which would turn khaki) when its wall is reset
+    /// soon.
     private func field(_ sector: Sector, zone: [MapPoint]) -> some View {
         let isSelected = selection == sector.id
         let isResetSoon = style(sector).isResetSoon
-        let tint: Color = isSelected ? Palette.moss : (isResetSoon ? Palette.mustard : .clear)
         return PlanShape(points: zone, isClosed: true)
-            .fill(Palette.mat)
+            .fill(isResetSoon && !isSelected ? Palette.canvas : Palette.mat)
             .overlay {
                 PlanShape(points: zone, isClosed: true)
-                    .fill(tint.opacity(isSelected ? 0.45 : 0.35))
-            }
-            .overlay {
-                PlanShape(points: zone, isClosed: true)
-                    .stroke(Palette.canvas, style: StrokeStyle(lineWidth: 2.5, lineJoin: .round))
+                    // Thin mustard turns brown on the dark floor, so more of it at night.
+                    .fill(isSelected ? Palette.moss.opacity(0.45)
+                          : (isResetSoon ? Palette.mustard.opacity(colorScheme == .dark ? 0.45 : 0.3) : .clear))
             }
             .animation(.snappy, value: isSelected)
             .allowsHitTesting(false)
@@ -149,8 +154,7 @@ struct GymMapView: View {
             PlanShape(points: path, boilFrame: reduceMotion ? nil : frame, salt: Double(order * 11))
                 .trim(from: 0, to: drawn)
                 .stroke(Palette.ink,
-                        style: StrokeStyle(lineWidth: Self.inkWidth, lineCap: .round, lineJoin: .round,
-                                           dash: wallStyle.dashed ? [4, 6] : []))
+                        style: StrokeStyle(lineWidth: Self.inkWidth, lineCap: .round, lineJoin: .round))
                 .opacity(drawn == 0 ? 0 : (wallStyle.isDimmed ? 0.35 : (isFaded ? 0.5 : 1)))
         }
         .animation(.snappy, value: selection)
