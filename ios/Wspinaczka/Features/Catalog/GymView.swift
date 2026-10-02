@@ -1,8 +1,8 @@
 import BoulderKit
 import SwiftUI
 
-/// A gym: its plan drawn like the reset board. Tap a wall to peek at the
-/// sector, then open it.
+/// A gym: its plan drawn like the reset board. Tap a sector's field (or its
+/// wall) to peek at the sector, then open it.
 struct GymView: View {
     @Environment(AppModel.self) private var app
     @State private var catalog: GymCatalog
@@ -52,9 +52,10 @@ struct GymView: View {
             SectorDetailView(catalog: catalog, sectorId: route.id)
                 .navigationTransition(.zoom(sourceID: route.id, in: zoom))
         }
+        // The header below shows the name; the bar keeps only actions. The
+        // title stays set for the back button of screens pushed from here.
+        .toolbar(removing: .title)
         .toolbar {
-            // The header below shows the name; the bar keeps only actions.
-            ToolbarItem(placement: .principal) { EmptyView() }
             if app.access.isManager(of: catalog.gym.id) {
                 ToolbarItem(placement: .primaryAction) {
                     Button("Dodaj sektor", systemImage: "plus") {
@@ -113,7 +114,7 @@ struct GymView: View {
                         removal: .opacity
                     ))
                 } else if !catalog.sectors.isEmpty {
-                    Text("Dotknij ściany, żeby zobaczyć jej problemy.")
+                    Text("Dotknij pola sektora, żeby zobaczyć jego problemy.")
                         .font(.footnote)
                         .foregroundStyle(Palette.muted)
                         .frame(maxWidth: .infinity)

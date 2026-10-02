@@ -88,6 +88,21 @@ public enum PlanGeometry {
         return hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
     }
 
+    /// Whether `point` lies inside the closed polygon (even-odd rule).
+    public static func contains(_ point: MapPoint, in polygon: [MapPoint]) -> Bool {
+        guard polygon.count > 2 else { return false }
+        var isInside = false
+        var previous = polygon[polygon.count - 1]
+        for current in polygon {
+            if (current.y > point.y) != (previous.y > point.y) {
+                let crossingX = current.x + (point.y - current.y) * (previous.x - current.x) / (previous.y - current.y)
+                if point.x < crossingX { isInside.toggle() }
+            }
+            previous = current
+        }
+        return isInside
+    }
+
     /// The sector whose wall is closest to a tap, if within `maxDistance`.
     /// Points are in view coordinates (already scaled by the view size).
     public static func nearest<ID>(

@@ -5,6 +5,9 @@ import SwiftUI
 struct SectorMapStyle {
     var color: Color
     var dashed = false
+    /// A reset is announced within two days: mustard wash on the wall and
+    /// its field.
+    var isResetSoon = false
     var isDimmed = false
 }
 
@@ -19,9 +22,10 @@ struct MapDot: Identifiable {
 }
 
 /// The gym drawn like its reset board, without names, in the same ink line
-/// as the drawings: mats in light moss, walls drawn in walking order, every
-/// problem as a dot of its hold color, and the doors. The ink boils, draws
-/// in and filters on the 8 fps clock; selection is smooth.
+/// as the drawings: the mat split into one field per sector (tap a field to
+/// pick its wall), walls drawn in walking order, every problem as a dot of
+/// its hold color, and the doors. The ink boils, draws in and filters on the
+/// 8 fps clock; selection is smooth.
 struct GymMapView: View {
     let plan: FloorPlan
     let sectors: [Sector]
@@ -39,6 +43,10 @@ struct GymMapView: View {
         sectors.compactMap { sector in sector.mapPath.map { (sector, $0) } }
     }
 
+    private var zoned: [(sector: Sector, zone: [MapPoint])] {
+        sectors.compactMap { sector in sector.mapZone.map { (sector, $0) } }
+    }
+
     var body: some View {
         let allDots = mapped.map { (sector: $0.sector, dots: dots($0.sector)) }
         let matching = Set(allDots.flatMap(\.dots).filter(\.isMatching).map(\.id))
@@ -50,6 +58,9 @@ struct GymMapView: View {
                 ZStack(alignment: .topLeading) {
                     ForEach(plan.mats.indices, id: \.self) { index in
                         PlanShape(points: plan.mats[index], isClosed: true).fill(Palette.mat)
+                    }
+                    ForEach(zoned, id: \.sector.id) { item in
+                        field(item.sector, zone: item.zone)
                     }
                     ForEach(plan.outlines.indices, id: \.self) { index in
                         PlanShape(points: plan.outlines[index])
@@ -92,6 +103,28 @@ struct GymMapView: View {
 
     private static let inkWidth: CGFloat = 2.4
 
+    /// A sector's field of mat, cut from its neighbours by a thin gap of
+    /// floor so every field reads as something to tap. Moss when chosen,
+    /// mustard when its wall is reset soon.
+    private func field(_ sector: Sector, zone: [MapPoint]) -> some View {
+        let isSelected = selection == sector.id
+        let isResetSoon = style(sector).isResetSoon
+        let tint: Color = isSelected ? Palette.moss : (isResetSoon ? Palette.mustard : .clear)
+        return PlanShape(points: zone, isClosed: true)
+            .fill(Palette.mat)
+            .overlay {
+                PlanShape(points: zone, isClosed: true)
+                    .fill(tint.opacity(isSelected ? 0.45 : 0.35))
+            }
+            .overlay {
+                PlanShape(points: zone, isClosed: true)
+                    .stroke(Palette.canvas, style: StrokeStyle(lineWidth: 2.5, lineJoin: .round))
+            }
+            .animation(.snappy, value: isSelected)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+
     @ViewBuilder
     private func wall(_ sector: Sector, path: [MapPoint], order: Int, frame: Int) -> some View {
         let wallStyle = style(sector)
@@ -99,7 +132,7 @@ struct GymMapView: View {
         let isFaded = selection != nil && !isSelected
         // Three frames per wall, each starting a little after the previous one.
         let drawn = min(1, max(0, (Double(frame) - Double(order) * 0.9) / 3))
-        let isResetSoon = wallStyle.color == Palette.mustard
+        let isResetSoon = wallStyle.isResetSoon
         ZStack {
             // A wide wash of color under the ink: moss for the chosen wall,
             // mustard where a reset is coming.
@@ -156,6 +189,13 @@ struct GymMapView: View {
     }
 
     private func select(at location: CGPoint, size: CGSize) {
+        guard size.width > 0, size.height > 0 else { return }
+        // A tap inside a field picks its sector; near a wall, the wall.
+        let tap = MapPoint(x: location.x / size.width, y: location.y / size.height)
+        if let field = zoned.first(where: { PlanGeometry.contains(tap, in: $0.zone) }) {
+            selection = field.sector.id == selection ? nil : field.sector.id
+            return
+        }
         let paths = mapped.map { item in
             (id: item.sector.id, points: item.path.map { MapPoint(x: $0.x * size.width, y: $0.y * size.height) })
         }
