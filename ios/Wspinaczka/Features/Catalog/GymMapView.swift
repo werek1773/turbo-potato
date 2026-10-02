@@ -5,10 +5,10 @@ import SwiftUI
 struct SectorMapStyle {
     var color: Color
     var dashed = false
-    /// A reset is announced within two days: mustard wash on the wall and
-    /// its field.
-    var isResetSoon = false
     var isDimmed = false
+    /// A reset is announced within two days: the wall and its field get a
+    /// mustard wash, and a drill stands outside the wall.
+    var isResetSoon = false
 }
 
 /// One problem standing at its wall, in the color of its holds.
@@ -77,6 +77,12 @@ struct GymMapView: View {
                         if let path = item.sector.mapPath {
                             wall(item.sector, path: path, order: order, frame: frame)
                             holds(item.dots, path: path, order: order, frame: frame, sinceFilter: sinceFilter, size: size)
+                        }
+                    }
+                    // Drills on top of everything, so they win the tap.
+                    ForEach(Array(mapped.enumerated()), id: \.element.sector.id) { order, item in
+                        if style(item.sector).isResetSoon {
+                            drill(item.sector, path: item.path, order: order, frame: frame, size: size)
                         }
                     }
                     ForEach(plan.entrances, id: \.self) { door in
@@ -180,6 +186,32 @@ struct GymMapView: View {
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
             }
+        }
+    }
+
+    /// The reset pictogram behind the wall (the side away from the floor),
+    /// at its middle: tapping it opens the sector's card with the reset date.
+    @ViewBuilder
+    private func drill(_ sector: Sector, path: [MapPoint], order: Int, frame: Int, size: CGSize) -> some View {
+        let scaled = path.map { MapPoint(x: $0.x * size.width, y: $0.y * size.height) }
+        if let spot = PlanGeometry.point(along: scaled, at: 0.5) {
+            let offset = 30.0, margin = 14.0
+            let x = min(max(spot.point.x - spot.normal.x * offset, margin), size.width - margin)
+            let y = min(max(spot.point.y - spot.normal.y * offset, margin), size.height - margin)
+            let appear = Double(frame) - (Double(order) * 0.9 + 3)
+            let isSelected = selection == sector.id
+            Button {
+                selection = isSelected ? nil : sector.id
+            } label: {
+                Pictogram(kind: .reset, size: 26)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .scaleEffect(appear < 0 ? 0 : (appear < 1 ? 1.4 : 1))
+            .opacity(selection != nil && !isSelected ? 0.5 : 1)
+            .position(x: x, y: y)
+            .accessibilityLabel("Przykrętka: \(sector.name)")
         }
     }
 

@@ -19,12 +19,12 @@ extension GymCatalog {
     func mapStyle(for sector: Sector) -> SectorMapStyle {
         let soon = upcomingReset(for: sector).map { $0.daysLeft <= 2 } ?? false
         guard photo(of: sector) != nil else {
-            return SectorMapStyle(color: Palette.line, dashed: true, isResetSoon: soon, isDimmed: !filter.isEmpty)
+            return SectorMapStyle(color: Palette.line, dashed: true, isDimmed: !filter.isEmpty, isResetSoon: soon)
         }
         return SectorMapStyle(
             color: soon ? Palette.mustard : Palette.moss,
-            isResetSoon: soon,
-            isDimmed: !filter.isEmpty && matchingCount(in: sector) == 0
+            isDimmed: !filter.isEmpty && matchingCount(in: sector) == 0,
+            isResetSoon: soon
         )
     }
 
