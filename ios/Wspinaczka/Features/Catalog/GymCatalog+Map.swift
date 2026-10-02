@@ -15,6 +15,7 @@ extension GymCatalog {
 
     /// Wall color on the map: dashed hairline without a photo, mustard when a
     /// reset is close, moss otherwise; dimmed when the filter excludes it.
+    /// A close reset also tints the sector's field, photo or not.
     func mapStyle(for sector: Sector) -> SectorMapStyle {
         let soon = upcomingReset(for: sector).map { $0.daysLeft <= 2 } ?? false
         guard photo(of: sector) != nil else {

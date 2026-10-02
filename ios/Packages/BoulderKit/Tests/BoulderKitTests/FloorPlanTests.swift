@@ -23,6 +23,32 @@ struct FloorPlanTests {
         #expect(PlanGeometry.nearest(to: MapPoint(x: 50, y: 80), among: paths, maxDistance: 24) == nil)
     }
 
+    @Test func tapInsideAFieldPicksItsSector() {
+        // Volt's Dziób: the wall bends inwards, so the field is concave.
+        let dziob = [MapPoint(x: 0.7999, y: 0.5217), MapPoint(x: 0.7212, y: 0.5925), MapPoint(x: 0.8087, y: 0.6349),
+                     MapPoint(x: 0.5125, y: 0.6321), MapPoint(x: 0.5625, y: 0.5189)]
+        #expect(PlanGeometry.contains(MapPoint(x: 0.62, y: 0.57), in: dziob))
+        // In the notch of the bend: outside the field, on the open floor.
+        #expect(!PlanGeometry.contains(MapPoint(x: 0.78, y: 0.59), in: dziob))
+        #expect(!PlanGeometry.contains(MapPoint(x: 0.4, y: 0.57), in: dziob))
+        #expect(!PlanGeometry.contains(MapPoint(x: 0.5, y: 0.5), in: [MapPoint(x: 0, y: 0), MapPoint(x: 1, y: 1)]))
+    }
+
+    @Test func neighbouringFieldsShareOneLine() {
+        let left = [MapPoint(x: 0, y: 0), MapPoint(x: 1, y: 0), MapPoint(x: 1, y: 1), MapPoint(x: 0, y: 1)]
+        let right = [MapPoint(x: 1, y: 0), MapPoint(x: 2, y: 0), MapPoint(x: 2, y: 1), MapPoint(x: 1, y: 1)]
+        let edges = PlanGeometry.sharedEdges(of: [left, right])
+        #expect(edges == [[MapPoint(x: 1, y: 0), MapPoint(x: 1, y: 1)]])
+        #expect(PlanGeometry.sharedEdges(of: [left]).isEmpty)
+    }
+
+    @Test func sectorDecodesItsField() throws {
+        let json = #"{"id": "6F9619FF-8B86-D011-B42D-00C04FC964FF", "gym_id": "6F9619FF-8B86-D011-B42D-00C04FC964FE", "name": "Połóg", "sort_order": 7, "map_path": [[0.4, 0.88], [0.19, 0.88]], "map_zone": [[0.4, 0.88], [0.19, 0.88], [0.28, 0.77]]}"#
+        let sector = try JSONDecoder().decode(Sector.self, from: Data(json.utf8))
+        #expect(sector.mapZone?.count == 3)
+        #expect(sector.mapZone?.last == MapPoint(x: 0.28, y: 0.77))
+    }
+
     @Test func midpointFollowsThePolyline() {
         let path = [MapPoint(x: 0, y: 0), MapPoint(x: 10, y: 0), MapPoint(x: 10, y: 10)]
         #expect(PlanGeometry.midpoint(of: path) == MapPoint(x: 10, y: 0))

@@ -88,6 +88,36 @@ public enum PlanGeometry {
         return hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
     }
 
+    /// Whether `point` lies inside the closed polygon (even-odd rule).
+    public static func contains(_ point: MapPoint, in polygon: [MapPoint]) -> Bool {
+        guard polygon.count > 2 else { return false }
+        var isInside = false
+        var previous = polygon[polygon.count - 1]
+        for current in polygon {
+            if (current.y > point.y) != (previous.y > point.y) {
+                let crossingX = current.x + (point.y - current.y) * (previous.x - current.x) / (previous.y - current.y)
+                if point.x < crossingX { isInside.toggle() }
+            }
+            previous = current
+        }
+        return isInside
+    }
+
+    /// Edges that two polygons share, in either direction: the lines between
+    /// neighbouring fields. Each comes once, in the order first met.
+    public static func sharedEdges(of polygons: [[MapPoint]]) -> [[MapPoint]] {
+        var counts: [[MapPoint]: Int] = [:]
+        var order: [[MapPoint]] = []
+        for polygon in polygons where polygon.count > 2 {
+            for (a, b) in zip(polygon, Array(polygon.dropFirst()) + [polygon[0]]) {
+                let edge = (a.x, a.y) < (b.x, b.y) ? [a, b] : [b, a]
+                if counts[edge] == nil { order.append(edge) }
+                counts[edge, default: 0] += 1
+            }
+        }
+        return order.filter { (counts[$0] ?? 0) > 1 }
+    }
+
     /// The sector whose wall is closest to a tap, if within `maxDistance`.
     /// Points are in view coordinates (already scaled by the view size).
     public static func nearest<ID>(

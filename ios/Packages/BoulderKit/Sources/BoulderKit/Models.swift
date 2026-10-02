@@ -68,11 +68,15 @@ public struct Sector: Identifiable, Hashable, Codable, Sendable {
     public var nextResetOn: LocalDate?
     /// This sector's stretch of wall on the gym's floor plan.
     public var mapPath: [MapPoint]?
+    /// This sector's field of mat on the plan (a closed polygon), like the
+    /// fields on the reset board. Tapping inside it picks the sector.
+    public var mapZone: [MapPoint]?
     public var archivedAt: Date?
 
     public init(id: UUID, gymId: UUID, name: String, area: String? = nil, sortOrder: Int,
                 currentPhotoId: UUID? = nil, lastResetAt: Date? = nil,
-                nextResetOn: LocalDate? = nil, mapPath: [MapPoint]? = nil, archivedAt: Date? = nil) {
+                nextResetOn: LocalDate? = nil, mapPath: [MapPoint]? = nil, mapZone: [MapPoint]? = nil,
+                archivedAt: Date? = nil) {
         self.id = id
         self.gymId = gymId
         self.name = name
@@ -82,6 +86,7 @@ public struct Sector: Identifiable, Hashable, Codable, Sendable {
         self.lastResetAt = lastResetAt
         self.nextResetOn = nextResetOn
         self.mapPath = mapPath
+        self.mapZone = mapZone
         self.archivedAt = archivedAt
     }
 
@@ -93,6 +98,7 @@ public struct Sector: Identifiable, Hashable, Codable, Sendable {
         case lastResetAt = "last_reset_at"
         case nextResetOn = "next_reset_on"
         case mapPath = "map_path"
+        case mapZone = "map_zone"
         case archivedAt = "archived_at"
     }
 }
