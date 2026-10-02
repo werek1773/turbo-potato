@@ -282,7 +282,7 @@ private struct WallPhotoBackdrop: View {
         GeometryReader { proxy in
             let size = proxy.size
             ZStack {
-                LinearGradient(colors: [Color(hex: 0xDCD8C8), Color(hex: 0xC4BFA9)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                LinearGradient(colors: [Color(light: 0xDCD8C8, dark: 0x3A3B33), Color(light: 0xC4BFA9, dark: 0x2C2D27)], startPoint: .topLeading, endPoint: .bottomTrailing)
                 ForEach(Self.volumes.indices, id: \.self) { index in
                     let volume = Self.volumes[index]
                     Ellipse()
