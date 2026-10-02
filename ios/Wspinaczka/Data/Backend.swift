@@ -10,7 +10,15 @@ struct Backend: Sendable {
     init() {
         client = SupabaseClient(
             supabaseURL: AppConfig.supabaseURL,
-            supabaseKey: AppConfig.supabasePublishableKey
+            supabaseKey: AppConfig.supabasePublishableKey,
+            options: SupabaseClientOptions(
+                // Start from the stored session at once, even when it has
+                // expired: the SDK refreshes it in the background, requests
+                // wait for the fresh token, and a revoked one ends in
+                // `.signedOut`. The old behaviour (logged as a warning on
+                // every launch) goes away in supabase-swift 3.
+                auth: .init(emitLocalSessionAsInitialSession: true)
+            )
         )
     }
 

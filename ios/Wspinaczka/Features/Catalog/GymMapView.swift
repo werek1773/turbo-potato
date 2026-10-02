@@ -6,8 +6,8 @@ struct SectorMapStyle {
     var color: Color
     var dashed = false
     var isDimmed = false
-    /// A reset is announced within two days: the wall and its field get a
-    /// mustard wash, and a drill stands outside the wall.
+    /// A reset is announced within two days: a mustard band along the wall,
+    /// and a drill stands outside it.
     var isResetSoon = false
 }
 
@@ -22,9 +22,10 @@ struct MapDot: Identifiable {
 }
 
 /// The gym drawn like its reset board, without names, in the same ink line
-/// as the drawings: the mat split into one field per sector (tap a field to
-/// pick its wall), walls drawn in walking order, every problem as a dot of
-/// its hold color, and the doors. The ink boils, draws in and filters on the
+/// as the drawings: the mat with a short stripe out of the wall at every
+/// joint between sectors (tap anywhere in a sector's field to pick it),
+/// walls drawn in walking order, every problem as a dot of its hold color,
+/// and the doors. The ink boils, draws in and filters on the
 /// 8 fps clock; selection is smooth.
 struct GymMapView: View {
     let plan: FloorPlan
@@ -60,14 +61,15 @@ struct GymMapView: View {
                         PlanShape(points: plan.mats[index], isClosed: true).fill(Palette.mat)
                     }
                     ForEach(zoned, id: \.sector.id) { item in
-                        field(item.sector, zone: item.zone)
+                        band(item.sector, zone: item.zone)
                     }
-                    // Thin ink lines between neighbouring fields, like the
-                    // lines across the mat on the reset board.
-                    let dividers = PlanGeometry.sharedEdges(of: zoned.map(\.zone))
-                    ForEach(dividers.indices, id: \.self) { index in
-                        PlanShape(points: dividers[index], boilFrame: reduceMotion ? nil : frame, salt: Double(700 + index * 5))
-                            .stroke(Palette.ink.opacity(0.4), style: StrokeStyle(lineWidth: 1.1, lineCap: .round))
+                    // A short ink stripe sticks out of the wall at every joint
+                    // between sectors, like the marks on the reset board.
+                    let marks = stripes(in: size)
+                    ForEach(marks.indices, id: \.self) { index in
+                        PlanShape(points: marks[index], boilFrame: reduceMotion ? nil : frame, salt: Double(700 + index * 5))
+                            .stroke(Palette.ink, style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
+                            .opacity(frame < 2 ? 0 : 1)
                             .allowsHitTesting(false)
                             .accessibilityHidden(true)
                     }
@@ -118,23 +120,40 @@ struct GymMapView: View {
 
     private static let inkWidth: CGFloat = 2.4
 
-    /// A sector's field of mat: moss when chosen; pale mustard instead of
-    /// the mat (not over it, which would turn khaki) when its wall is reset
-    /// soon.
-    private func field(_ sector: Sector, zone: [MapPoint]) -> some View {
+    /// How far the color band reaches from a wall into the mat, and about
+    /// how long the stripes at the joints are, in points.
+    private static let bandDepth: CGFloat = 14
+
+    /// The chosen sector (moss) or one reset soon (mustard): a band of color
+    /// along its wall, cut off at the stripes by the sector's field.
+    private func band(_ sector: Sector, zone: [MapPoint]) -> some View {
         let isSelected = selection == sector.id
         let isResetSoon = style(sector).isResetSoon
-        return PlanShape(points: zone, isClosed: true)
-            .fill(isResetSoon && !isSelected ? Palette.canvas : Palette.mat)
-            .overlay {
-                PlanShape(points: zone, isClosed: true)
-                    // Thin mustard turns brown on the dark floor, so more of it at night.
-                    .fill(isSelected ? Palette.moss.opacity(0.45)
-                          : (isResetSoon ? Palette.mustard.opacity(colorScheme == .dark ? 0.45 : 0.3) : .clear))
-            }
+        // Mustard over the green mat goes khaki when thin, and brown at night.
+        let opacity = isSelected ? 0.5 : (isResetSoon ? (colorScheme == .dark ? 0.55 : 0.6) : 0)
+        return PlanShape(points: sector.mapPath ?? [])
+            .stroke(isSelected ? Palette.moss : Palette.mustard,
+                    style: StrokeStyle(lineWidth: Self.bandDepth * 2, lineJoin: .round))
+            .clipShape(PlanShape(points: zone, isClosed: true))
+            .opacity(opacity)
             .animation(.snappy, value: isSelected)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
+    }
+
+    /// From each joint of the wall, a short way along the line that parts
+    /// two neighbouring fields: the stripes, in plan coordinates.
+    private func stripes(in size: CGSize) -> [[MapPoint]] {
+        guard size.width > 0, size.height > 0 else { return [] }
+        let joints = Set(mapped.flatMap(\.path))
+        return PlanGeometry.sharedEdges(of: zoned.map(\.zone)).compactMap { edge in
+            guard let from = edge.first(where: { joints.contains($0) }),
+                  let to = edge.first(where: { $0 != from }) else { return nil }
+            let length = hypot((to.x - from.x) * size.width, (to.y - from.y) * size.height)
+            guard length > 0 else { return nil }
+            let t = min(1, Self.bandDepth * 1.15 / length)
+            return [from, MapPoint(x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t)]
+        }
     }
 
     @ViewBuilder
@@ -144,14 +163,16 @@ struct GymMapView: View {
         let isFaded = selection != nil && !isSelected
         // Three frames per wall, each starting a little after the previous one.
         let drawn = min(1, max(0, (Double(frame) - Double(order) * 0.9) / 3))
-        let isResetSoon = wallStyle.isResetSoon
+        // Sectors with a field show the choice and the reset as a band.
+        let hasBand = sector.mapZone != nil
+        let isResetSoon = wallStyle.isResetSoon && !hasBand
         ZStack {
             // A wide wash of color under the ink: moss for the chosen wall,
-            // mustard where a reset is coming.
+            // mustard where a reset is coming (sectors without a field).
             PlanShape(points: path)
                 .stroke(isSelected ? Palette.moss : Palette.mustard,
                         style: StrokeStyle(lineWidth: isSelected ? 12 : 7, lineCap: .round, lineJoin: .round))
-                .opacity(drawn < 1 ? 0 : (isSelected ? 1 : (isResetSoon && !isFaded ? 0.55 : 0)))
+                .opacity(drawn < 1 || hasBand ? 0 : (isSelected ? 1 : (isResetSoon && !isFaded ? 0.55 : 0)))
             PlanShape(points: path, boilFrame: reduceMotion ? nil : frame, salt: Double(order * 11))
                 .trim(from: 0, to: drawn)
                 .stroke(Palette.ink,
