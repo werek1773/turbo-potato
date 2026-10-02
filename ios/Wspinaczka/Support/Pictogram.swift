@@ -31,11 +31,11 @@ struct Pictogram: View {
     private static func drawing(_ kind: Kind) -> Drawing {
         switch kind {
         case .flash:
-            Drawing(color: Palette.coral,
+            Drawing(color: Palette.sun,
                     blob: InkPath("M5 12 C5 7 9 6 12 7 C16 8 17 12 16 16 C15 19 10 20 7 18 C5.5 17 5 14.5 5 12 Z"),
                     lines: [InkPath("M14.5 2.5 L8 12.5 L13 12.5 L9.5 21.5")])
         case .top:
-            Drawing(color: Palette.moss,
+            Drawing(color: Palette.sky,
                     blob: InkPath("M6 13 C6 8 9.5 5.5 13 6 C17 6.5 19.5 9.5 19 13.5 C18.5 17.5 15 19.5 11.5 19 C8 18.5 6 16.5 6 13 Z"),
                     lines: [InkPath("M4.5 12 C6.5 13.5 8 15.5 9.5 18.5 C12 12.5 15.5 8 20.5 4.5")])
         case .project:

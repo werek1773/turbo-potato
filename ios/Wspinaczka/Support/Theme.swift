@@ -23,6 +23,10 @@ enum Palette {
     static let mustardText = Color(hex: 0xA97C14)
     static let plum = Color(hex: 0x6A3357)
     static let coral = Color(hex: 0xE2725B)
+    /// Top: a clear blue, the one cool color in the room.
+    static let sky = Color(hex: 0x3F7FBF)
+    /// Flash: sunny yellow, lighter than mustard so the two never mix up.
+    static let sun = Color(hex: 0xF2C12E)
 }
 
 extension Color {
