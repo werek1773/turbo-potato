@@ -23,12 +23,16 @@ struct SectorDetailView: View {
                         ResetBadge(reset: reset)
                     }
                     if let photo = catalog.photo(of: sector) {
+                        if !catalog.problems(in: sector).isEmpty {
+                            CatalogFilterBar(catalog: catalog, sector: sector)
+                        }
                         SectorPhotoView(
                             photo: photo,
                             problems: catalog.problems(in: sector),
                             highlighted: catalog.visibleProblemIds,
                             topped: catalog.toppedProblemIds,
-                            gradeLabels: catalog.gradesById.mapValues(\.label)
+                            gradeLabels: catalog.gradesById.mapValues(\.label),
+                            sectorName: sector.name
                         )
                         problemSummary(sector)
                     } else {
@@ -114,10 +118,18 @@ struct SectorDetailView: View {
     private func problemSummary(_ sector: Sector) -> some View {
         let problems = catalog.problems(in: sector)
         let topped = catalog.toppedCount(in: sector)
-        return HStack {
-            Label("\(problems.count) problemów", systemImage: "mappin")
-            Spacer()
-            Label("zrobione \(topped)/\(problems.count)", systemImage: "checkmark.circle")
+        let count = Label(Polish.problems(problems.count), systemImage: "mappin")
+        let done = Label("zrobione \(topped)/\(problems.count)", systemImage: "checkmark.circle")
+        return ViewThatFits(in: .horizontal) {
+            HStack {
+                count
+                Spacer()
+                done
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                count
+                done
+            }
         }
         .font(.subheadline)
         .foregroundStyle(.secondary)

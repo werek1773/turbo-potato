@@ -3,32 +3,56 @@ import Foundation
 import Observation
 
 /// State of "Podsumuj sesję" for one gym and one climbing day.
+///
+/// Every change is shown at once and queued in the `JournalOutbox`, which
+/// sends it when there is network; nothing here waits for the server.
 @MainActor
 @Observable
 final class SessionLog {
     let catalog: GymCatalog
+    let outbox: JournalOutbox
     var day: LocalDate {
-        didSet { if oldValue != day { Task { await reloadDay() } } }
+        didSet {
+            guard oldValue != day else { return }
+            serverWellbeing = nil
+            Task { await reloadDay() }
+        }
     }
 
-    /// My records of this day, by problem.
-    private(set) var results: [UUID: Ascent] = [:]
-    private(set) var session: ClimbingSession?
-    private(set) var wellbeing: SessionWellbeing?
-    /// Problems whose save is in flight (pins show a spinner-free dimmed state).
-    private(set) var saving: Set<UUID> = []
+    /// My wellbeing entry of the day as confirmed by the server.
+    private var serverWellbeing: WellbeingValues?
+    /// Why the last refresh from the server failed (shown, not thrown).
+    private(set) var loadError: String?
+    private(set) var isLoadErrorConnectivity = false
 
-    init(catalog: GymCatalog, day: LocalDate) {
+    init(catalog: GymCatalog, day: LocalDate, outbox: JournalOutbox = .shared) {
         self.catalog = catalog
         self.day = day
+        self.outbox = outbox
     }
 
     var backend: Backend { catalog.backend }
     var today: LocalDate { catalog.today }
 
+    /// My records of this day, by problem (pending writes included).
+    var results: [UUID: Ascent] {
+        Dictionary(
+            catalog.myAscents.filter { $0.localDate == day }.map { ($0.problemId, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+    }
+
     var dayAscents: [Ascent] { Array(results.values) }
 
     var summary: DaySummary { DaySummary.of(dayAscents, grades: catalog.gradesById) }
+
+    /// The day's wellbeing: a pending save wins over the server's entry.
+    var wellbeing: WellbeingValues? {
+        if let pending = outbox.pendingWellbeing(gymId: catalog.gym.id, on: day) {
+            return pending.values.isEmpty ? nil : pending.values
+        }
+        return serverWellbeing
+    }
 
     /// Problems tried on an earlier day cannot be flashed today.
     var flashable: Set<UUID> {
@@ -39,36 +63,62 @@ final class SessionLog {
         )
     }
 
-    func load() async throws {
-        try await catalog.load()
-        try await reloadDayThrowing()
+    // MARK: Loading
+
+    /// Shows the cached catalog at once, then refreshes it from the server.
+    func load() async {
+        await refresh {
+            try await self.catalog.load()
+            try await self.loadWellbeing()
+        }
     }
 
     func reloadDay() async {
-        try? await reloadDayThrowing()
+        await refresh { try await self.loadWellbeing() }
     }
 
-    private func reloadDayThrowing() async throws {
-        let ascents = try await backend.myAscents(gymId: catalog.gym.id)
-        results = Dictionary(
-            ascents.filter { $0.localDate == day }.map { ($0.problemId, $0) },
-            uniquingKeysWith: { first, _ in first }
-        )
-        session = try await backend.session(gymId: catalog.gym.id, on: day)
-        if let session {
-            wellbeing = try await backend.wellbeing(sessionId: session.id)
-        } else {
-            wellbeing = nil
+    /// Brings my ascents in line with the server once the outbox is sent
+    /// (the server may have changed them, e.g. a later flash became a top).
+    func reconcile() async {
+        await refresh {
+            try await self.catalog.refreshMyAscents()
+            try await self.loadWellbeing()
         }
+    }
+
+    private func refresh(_ work: () async throws -> Void) async {
+        do {
+            try await work()
+            loadError = nil
+            isLoadErrorConnectivity = false
+        } catch {
+            // A view's .task cancelled mid-request is not a failure.
+            if error is CancellationError || (error as? URLError)?.code == .cancelled { return }
+            loadError = UserFacingError.message(for: error)
+            isLoadErrorConnectivity = error.isConnectivityError
+        }
+    }
+
+    private func loadWellbeing() async throws {
+        let requestedDay = day
+        let session = try await backend.session(gymId: catalog.gym.id, on: requestedDay)
+        let entry: SessionWellbeing? = if let session {
+            try await backend.wellbeing(sessionId: session.id)
+        } else {
+            nil
+        }
+        // A save made meanwhile is newer than what was downloaded.
+        guard requestedDay == day, outbox.pendingWellbeing(gymId: catalog.gym.id, on: day) == nil else { return }
+        serverWellbeing = entry.map(WellbeingValues.init)
     }
 
     // MARK: Pins
 
     /// Tap on a pin: none → top → flash → project → none.
-    func cycle(_ problem: ActiveProblem) async throws {
+    func cycle(_ problem: ActiveProblem) {
         let current = results[problem.id]
         let next = AscentResult.next(after: current?.result, canFlash: flashable.contains(problem.id))
-        try await set(problem, result: next, keepingDetailsOf: current)
+        set(problem, result: next, keepingDetailsOf: current)
     }
 
     func set(
@@ -79,70 +129,41 @@ final class SessionLog {
         limiters: [Limiter] = [],
         note: String? = nil,
         keepingDetailsOf previous: Ascent? = nil
-    ) async throws {
-        let before = results[problem.id]
+    ) {
         let attempts = attempts ?? previous?.attempts
         let perceived = perceivedGrade ?? previous?.perceivedGrade
         let limiters = limiters.isEmpty ? (previous?.limiters ?? []) : limiters
         let note = note ?? previous?.note
-        // A flash is one attempt by definition.
-        let cleanAttempts = result == .flash ? nil : attempts
-        // Limiters only describe what stopped an unfinished project.
-        let cleanLimiters = result == .project ? limiters : []
 
-        // Optimistic update.
-        if let result {
-            results[problem.id] = Ascent(
-                id: before?.id ?? UUID(),
-                gymId: problem.gymId,
-                problemId: problem.id,
-                localDate: day,
-                result: result,
-                attempts: cleanAttempts,
-                perceivedGrade: perceived,
-                limiters: cleanLimiters,
-                note: note,
-                gradeIdSnapshot: before?.gradeIdSnapshot ?? problem.gradeId
-            )
-        } else {
-            results[problem.id] = nil
-        }
-        saving.insert(problem.id)
-        defer { saving.remove(problem.id) }
-
-        do {
-            try await backend.setAscent(
-                problemId: problem.id,
-                on: day,
-                result: result,
-                attempts: cleanAttempts,
-                perceivedGrade: perceived,
-                limiters: cleanLimiters,
-                note: note
-            )
-            try await reloadDayThrowing()
-        } catch {
-            results[problem.id] = before
-            throw error
-        }
+        let write = PendingAscent(
+            id: results[problem.id]?.id ?? UUID(),
+            gymId: problem.gymId,
+            problemId: problem.id,
+            localDate: day,
+            result: result,
+            // A flash is one attempt by definition.
+            attempts: result == .flash ? nil : attempts,
+            perceivedGrade: perceived,
+            // Limiters only describe what stopped an unfinished project.
+            limiters: result == .project ? limiters : [],
+            note: note,
+            gradeIdSnapshot: problem.gradeId
+        )
+        catalog.applyLocal(write)
+        outbox.enqueue(.ascent(write))
     }
 
     // MARK: Wellbeing
 
-    func saveWellbeing(energy: Int?, rpe: Int?, skin: SkinState?, painAreas: Set<BodyArea>) async throws {
-        let sessionId: UUID
-        if let existing = session?.id {
-            sessionId = existing
-        } else {
-            sessionId = try await backend.upsertSession(gymId: catalog.gym.id, on: day)
-        }
-        try await backend.setWellbeing(SessionWellbeing(
-            sessionId: sessionId,
+    func saveWellbeing(energy: Int?, rpe: Int?, skin: SkinState?, painAreas: Set<BodyArea>) {
+        let values = WellbeingValues(
             energy: energy,
             rpe: rpe,
             skin: skin,
             painAreas: painAreas.sorted { $0.rawValue < $1.rawValue }
-        ))
-        try await reloadDayThrowing()
+        )
+        // What the server will hold once sent, so nothing jumps back then.
+        serverWellbeing = values.isEmpty ? nil : values
+        outbox.enqueue(.wellbeing(PendingWellbeing(gymId: catalog.gym.id, localDate: day, values: values)))
     }
 }

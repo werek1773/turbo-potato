@@ -4,16 +4,26 @@ import SwiftUI
 @main
 struct WspinaczkaApp: App {
     @State private var app = AppModel()
+    @State private var visits = VisitMonitor.shared
+
+    init() {
+        // Also runs on background launches for geofence events: the monitor
+        // must be recreated and its events consumed right away.
+        VisitMonitor.shared.start()
+    }
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environment(app)
+                .environment(visits)
                 .tint(Palette.moss)
                 .task { app.start() }
                 .onOpenURL { url in
                     if let code = InviteCode.code(from: url) {
                         app.pendingInvite = PendingInvite(code: code)
+                    } else if let route = SessionRoute(url: url) {
+                        visits.open(route)
                     }
                 }
         }
@@ -87,9 +97,11 @@ struct SplashView: View {
 
 struct MainTabView: View {
     @Environment(AppModel.self) private var app
+    @Environment(VisitMonitor.self) private var visits
 
     var body: some View {
         @Bindable var app = app
+        @Bindable var visits = visits
         TabView {
             Tab("Ścianka", systemImage: "map") {
                 GymsTab()
@@ -97,12 +109,23 @@ struct MainTabView: View {
             Tab("Sesja", systemImage: "checklist") {
                 SessionView()
             }
+            Tab("Postępy", systemImage: "chart.bar.xaxis") {
+                StatsTab()
+            }
             Tab("Profil", systemImage: "person.crop.circle") {
                 ProfileView()
             }
         }
         .sheet(item: $app.pendingInvite) { invite in
             AcceptInviteView(initialCode: invite.code)
+        }
+        // Sends journal writes left from offline use, also from earlier launches.
+        .task { JournalOutbox.shared.start() }
+        .sheet(item: $visits.pendingSummary) { route in
+            VisitSummarySheet(route: route)
+        }
+        .task(id: app.gyms) {
+            if !app.gyms.isEmpty { visits.updateGyms(app.gyms) }
         }
     }
 }

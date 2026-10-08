@@ -7,6 +7,7 @@ struct IntroView: View {
     @Environment(AppModel.self) private var app
     @AppStorage("hasSeenIntro") private var hasSeenIntro = false
     @State private var page = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     #if DEBUG
     @State private var isShowingTestSignIn = false
     #endif
@@ -22,13 +23,13 @@ struct IntroView: View {
                 ReadyPage(isActive: page == 3).tag(3)
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
-            .animation(.smooth, value: page)
+            .animation(reduceMotion ? nil : .smooth, value: page)
 
             PageDots(count: pageCount, current: page)
 
             Group {
                 if page < pageCount - 1 {
-                    Button("Dalej") { withAnimation(.smooth) { page += 1 } }
+                    Button("Dalej") { withAnimation(reduceMotion ? nil : .smooth) { page += 1 } }
                         .buttonStyle(.pill)
                 } else {
                     VStack(spacing: 10) {
@@ -125,6 +126,7 @@ private struct FilterPage: View {
             Spacer(minLength: 0)
             if isActive {
                 DemoMap(grade: grade)
+                    .accessibilityHidden(true)
             }
             Spacer(minLength: 0)
         }
@@ -206,10 +208,12 @@ private struct TapDemo: View {
     private let script: [(Int, AscentResult, Int)] = [(0, .top, 6), (1, .top, 14), (1, .flash, 20), (2, .top, 28)]
 
     @State private var start = Date()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        TimelineView(.periodic(from: start, by: 1 / StopMotion.fps)) { timeline in
-            let t = StopMotion.frame(at: timeline.date, since: start)
+        TimelineView(.stopMotion(paused: reduceMotion)) { timeline in
+            // Reduce Motion: no finger, just the wall once everything is tapped.
+            let t = reduceMotion ? 40 : StopMotion.frame(at: timeline.date, since: start)
             let state = state(at: t)
             VStack(spacing: 14) {
                 GeometryReader { proxy in
@@ -233,11 +237,16 @@ private struct TapDemo: View {
                 }
                 .aspectRatio(4 / 3, contentMode: .fit)
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .accessibilityHidden(true)
 
-                HStack(spacing: 6) {
+                let tallies = Group {
                     TallyChip(kind: .flash, label: "Flash", count: state.count(.flash))
                     TallyChip(kind: .top, label: "Top", count: state.count(.top))
                     TallyChip(kind: .project, label: "Projekt", count: 1)
+                }
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 6) { tallies }
+                    VStack(spacing: 6) { tallies }
                 }
             }
         }

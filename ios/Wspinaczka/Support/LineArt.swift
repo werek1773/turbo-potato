@@ -240,7 +240,7 @@ struct DrawingView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        TimelineView(.periodic(from: start, by: 1 / StopMotion.fps)) { timeline in
+        TimelineView(.stopMotion(paused: reduceMotion)) { timeline in
             let frame = reduceMotion ? 0 : StopMotion.frame(at: timeline.date, since: start)
             let progress = drawsOn && !reduceMotion ? frame : 1000
             Canvas { context, size in
@@ -270,7 +270,7 @@ struct PyramidView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        TimelineView(.periodic(from: start, by: 1 / StopMotion.fps)) { timeline in
+        TimelineView(.stopMotion(paused: reduceMotion)) { timeline in
             let frame = reduceMotion ? 0 : StopMotion.frame(at: timeline.date, since: start)
             let built = reduceMotion ? 1000 : frame - 2
             Canvas { context, size in

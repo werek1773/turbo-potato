@@ -21,6 +21,34 @@ public struct ProblemFilter: Hashable, Sendable {
 
     public var isEmpty: Bool { self == ProblemFilter() }
 
+    /// How many kinds of filter are on (grade, sector, colour, not done,
+    /// new): the badge on the filter button. Three colours count as one.
+    public var activeCount: Int {
+        [gradeOrders != nil, !sectorIds.isEmpty, !colors.isEmpty, onlyNotTopped, setAfter != nil]
+            .filter { $0 }.count
+    }
+
+    /// Back to every problem.
+    public mutating func reset() {
+        self = ProblemFilter()
+    }
+
+    public mutating func toggle(_ color: HoldColor) {
+        if colors.contains(color) { colors.remove(color) } else { colors.insert(color) }
+    }
+
+    public mutating func toggleSector(_ id: UUID) {
+        if sectorIds.contains(id) { sectorIds.remove(id) } else { sectorIds.insert(id) }
+    }
+
+    /// What the coverage counter counts: the filter without "not done by me",
+    /// which would always leave 0 done.
+    public var coverageScope: ProblemFilter {
+        var scope = self
+        scope.onlyNotTopped = false
+        return scope
+    }
+
     public func matches(
         _ problem: ActiveProblem,
         grades: [UUID: Grade],
@@ -59,7 +87,32 @@ public struct GradeCoverage: Hashable, Sendable, Identifiable {
     public var fraction: Double { active == 0 ? 0 : Double(topped) / Double(active) }
 }
 
+/// "7 z 12": active problems and how many of them I topped.
+public struct CoverageCount: Hashable, Sendable {
+    public let active: Int
+    public let topped: Int
+
+    public init(active: Int, topped: Int) {
+        self.active = active
+        self.topped = topped
+    }
+}
+
 public enum Coverage {
+    /// The coverage counter under the filters ("4: 7 z 12 aktywnych"): the
+    /// problems the filter shows, ignoring "not done by me".
+    public static func count(
+        problems: [ActiveProblem],
+        grades: [UUID: Grade],
+        toppedProblemIds: Set<UUID>,
+        filter: ProblemFilter,
+        timeZone: TimeZone
+    ) -> CoverageCount {
+        let shown = filter.coverageScope.apply(to: problems, grades: grades,
+                                               toppedProblemIds: toppedProblemIds, timeZone: timeZone)
+        return CoverageCount(active: shown.count, topped: shown.filter { toppedProblemIds.contains($0.id) }.count)
+    }
+
     public static func byGrade(
         problems: [ActiveProblem],
         grades: [Grade],

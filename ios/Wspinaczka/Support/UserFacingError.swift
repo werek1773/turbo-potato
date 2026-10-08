@@ -6,7 +6,11 @@ import Supabase
 enum UserFacingError {
     static func message(for error: any Error) -> String {
         if let postgrest = error as? PostgrestError {
-            return known[postgrest.message] ?? postgrest.message
+            if let text = known[postgrest.message] { return text }
+            // Raw database messages are English and technical: never shown.
+            return postgrest.code == "42501"
+                ? "Nie masz uprawnień do tej operacji."
+                : "Serwer odrzucił zapytanie. Spróbuj ponownie za chwilę."
         }
         if let appleError = error as? ASAuthorizationError {
             return message(for: appleError)
