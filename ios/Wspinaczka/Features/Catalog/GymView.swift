@@ -22,9 +22,16 @@ struct GymView: View {
     }
 
     var body: some View {
-        ScrollView {
-            content
-                .padding()
+        ScrollViewReader { proxy in
+            ScrollView {
+                content
+                    .padding()
+            }
+            // The peek card opens below the map, under the tab bar: bring it into view.
+            .onChange(of: selection) { _, id in
+                guard let id else { return }
+                withAnimation(.snappy) { proxy.scrollTo(id, anchor: .bottom) }
+            }
         }
         .canvasBackground()
         .overlay {

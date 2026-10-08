@@ -11,8 +11,17 @@ enum UserFacingError {
         if let appleError = error as? ASAuthorizationError {
             return message(for: appleError)
         }
-        if let urlError = error as? URLError, urlError.code == .notConnectedToInternet {
-            return "Brak połączenia z internetem."
+        if let urlError = error as? URLError {
+            switch urlError.code {
+            case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed:
+                return "Brak połączenia z internetem."
+            case .timedOut:
+                return "Serwer nie odpowiada. Spróbuj ponownie za chwilę."
+            case .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed:
+                return "Nie można połączyć się z serwerem. Sprawdź połączenie i spróbuj ponownie."
+            default:
+                break
+            }
         }
         return error.localizedDescription
     }

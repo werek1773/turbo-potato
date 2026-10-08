@@ -139,7 +139,8 @@ final class AppModel {
     // MARK: Errors
 
     func report(_ error: any Error) {
-        if error is CancellationError { return }
+        // A view's .task cancelled mid-request surfaces as URLError.cancelled, not CancellationError.
+        if error is CancellationError || (error as? URLError)?.code == .cancelled { return }
         errorMessage = UserFacingError.message(for: error)
         isShowingError = true
     }

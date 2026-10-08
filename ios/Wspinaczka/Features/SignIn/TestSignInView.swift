@@ -16,12 +16,12 @@ struct TestSignInView: View {
             Form {
                 Section {
                     TextField("E-mail", text: $email)
-                        .textContentType(.username)
+                        .textContentType(nil)
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                     SecureField("Hasło (min. 6 znaków)", text: $password)
-                        .textContentType(.password)
+                        .textContentType(nil)
                 } footer: {
                     Text("Tylko w wersji Debug. Pierwszy raz użyj „Utwórz konto”, potem „Zaloguj”.")
                 }

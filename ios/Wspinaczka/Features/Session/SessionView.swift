@@ -17,10 +17,10 @@ struct SessionView: View {
                     SessionDayView(gym: gym)
                         .id(gym.id)
                 } else {
-                    ContentUnavailableView(
-                        "Brak ścianki",
-                        systemImage: "checklist",
-                        description: Text("Gdy Twoja ścianka będzie dostępna, tutaj podsumujesz sesję.")
+                    ChalkEmptyState(
+                        title: "Brak ścianek",
+                        message: "Gdy Twoja ścianka zostanie opublikowana, tutaj podsumujesz sesję.",
+                        refresh: { await app.refresh() }
                     )
                 }
             }

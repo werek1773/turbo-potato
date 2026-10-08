@@ -7,37 +7,34 @@ struct GymListView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    ForEach(app.gyms) { gym in
-                        NavigationLink(value: gym) {
-                            GymCard(gym: gym)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding()
-            }
-            .canvasBackground()
-            .overlay {
+            Group {
                 if app.gyms.isEmpty {
-                    VStack(spacing: 8) {
-                        DrawingView(drawing: .chalk)
-                            .frame(height: 140)
-                        Text("Brak ścianek")
-                            .font(.display(.title3))
-                        Text("Twoja ścianka pojawi się tutaj, gdy zostanie opublikowana.")
-                            .foregroundStyle(Palette.muted)
-                            .multilineTextAlignment(.center)
+                    ChalkEmptyState(
+                        title: "Brak ścianek",
+                        message: "Twoja ścianka pojawi się tutaj, gdy zostanie opublikowana.",
+                        refresh: { await app.refresh() }
+                    )
+                } else {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 16) {
+                            ForEach(app.gyms) { gym in
+                                NavigationLink(value: gym) {
+                                    GymCard(gym: gym)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
                     }
-                    .padding(32)
+                    .canvasBackground()
+                    .refreshable { await app.refresh() }
                 }
             }
             .navigationTitle("Ścianki")
             .navigationDestination(for: Gym.self) { gym in
                 GymView(gym: gym)
             }
-            .refreshable { await app.refresh() }
         }
     }
 }

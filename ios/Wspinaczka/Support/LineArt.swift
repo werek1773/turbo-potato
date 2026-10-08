@@ -309,3 +309,29 @@ struct PyramidView: View {
         }
     }
 }
+
+/// The chalk-bag empty state, centred on the canvas and pull-to-refreshable.
+struct ChalkEmptyState: View {
+    let title: String
+    let message: String
+    let refresh: () async -> Void
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 8) {
+                DrawingView(drawing: .chalk)
+                    .frame(height: 140)
+                Text(title)
+                    .font(.display(.title3))
+                    .foregroundStyle(Palette.ink)
+                Text(message)
+                    .foregroundStyle(Palette.muted)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(32)
+            .containerRelativeFrame([.horizontal, .vertical])
+        }
+        .canvasBackground()
+        .refreshable { await refresh() }
+    }
+}
