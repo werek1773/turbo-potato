@@ -165,6 +165,24 @@ struct Backend: Sendable {
             .value
     }
 
+    /// Routes of active problems on their sectors' current photos.
+    func currentRoutes(gymId: UUID) async throws -> [RouteHold] {
+        try await client.from("current_routes")
+            .select()
+            .eq("gym_id", value: gymId)
+            .execute()
+            .value
+    }
+
+    /// Every hold on a photo, detected or added by hand (for the builder).
+    func photoHolds(photoId: UUID) async throws -> [PhotoHold] {
+        try await client.from("photo_holds")
+            .select()
+            .eq("photo_id", value: photoId)
+            .execute()
+            .value
+    }
+
     func myAscents(gymId: UUID) async throws -> [Ascent] {
         try await client.from("ascents")
             .select()
