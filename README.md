@@ -45,3 +45,16 @@ open Wspinaczka.xcodeproj
 ```
 
 Po każdym `git pull`, który zmienia `project.yml` lub dodaje pliki, uruchom ponownie `xcodegen generate`.
+
+### Przypomnienie po wizycie (wykrywanie wizyty)
+
+`ios/Wspinaczka/Features/Visits/` — opcjonalne (Profil → Przypomnienie po wizycie). `CLMonitor` obserwuje
+okręgi (≥ 150 m) wokół najwyżej 15 ścianek; po wyjściu po pobycie > 20 min (z odszumianiem ~5 min) przychodzi
+lokalne powiadomienie, które otwiera podsumowanie tej ścianki i tego dnia (`wspinaczka://session?gym=…&day=…`).
+Zgoda „Zawsze” jest proszona dwuetapowo, po ekranie wyjaśnienia; bez niej (lub przy przybliżonej lokalizacji)
+zostaje ręczne podsumowanie. Brak `UIBackgroundModes: location`.
+
+**Prywatność:** aplikacja nie zapisuje położenia ani trasy — system zgłasza tylko wejście do okręgu i wyjście
+z niego. Godziny wizyt są przechowywane wyłącznie lokalnie (`Application Support/gym-visits.json`, maks. 60 dni)
+i nie trafiają na serwer ani do ścianki; wyłączenie funkcji je usuwa. Dane, które nie opuszczają telefonu,
+nie są „zbierane” w rozumieniu etykiet prywatności App Store.

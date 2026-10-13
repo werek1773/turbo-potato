@@ -45,6 +45,62 @@ struct CatalogTests {
         #expect(filter.apply(to: [old, fresh], grades: lookup, toppedProblemIds: [], timeZone: warsaw) == [fresh])
     }
 
+    @Test func allFiltersCombine() {
+        let lookup = Dictionary(uniqueKeysWithValues: grades.map { ($0.id, $0) })
+        let match = problem(grade: 5, sector: grotto, color: .yellow, setAt: "2026-09-25T10:00:00Z")
+        let done = problem(grade: 5, sector: grotto, color: .yellow, setAt: "2026-09-25T10:00:00Z")
+        let old = problem(grade: 5, sector: grotto, color: .yellow, setAt: "2026-09-20T10:00:00Z")
+        let tooHard = problem(grade: 7, sector: grotto, color: .yellow, setAt: "2026-09-25T10:00:00Z")
+        let otherSector = problem(grade: 5, sector: slab, color: .yellow, setAt: "2026-09-25T10:00:00Z")
+        let otherColor = problem(grade: 5, sector: grotto, color: .red, setAt: "2026-09-25T10:00:00Z")
+        let filter = ProblemFilter(gradeOrders: 4...6, sectorIds: [grotto], colors: [.yellow, .blue],
+                                   onlyNotTopped: true, setAfter: LocalDate("2026-09-22"))
+        let all = [match, done, old, tooHard, otherSector, otherColor]
+        #expect(filter.apply(to: all, grades: lookup, toppedProblemIds: [done.id], timeZone: warsaw) == [match])
+        #expect(filter.activeCount == 5)
+    }
+
+    @Test func filterCountResetAndToggles() {
+        var filter = ProblemFilter()
+        #expect(filter.isEmpty && filter.activeCount == 0)
+        filter.toggle(.yellow)
+        filter.toggle(.blue)
+        filter.toggleSector(grotto)
+        #expect(filter.colors == [.yellow, .blue])
+        #expect(filter.activeCount == 2)  // two colours are one kind of filter
+        filter.toggle(.yellow)
+        filter.toggleSector(grotto)
+        #expect(filter.colors == [.blue] && filter.sectorIds.isEmpty)
+        filter.onlyNotTopped = true
+        filter.gradeOrders = 3...3
+        #expect(filter.activeCount == 3)
+        filter.reset()
+        #expect(filter.isEmpty)
+    }
+
+    @Test func coverageCounterFollowsTheFilterButNotNotDone() {
+        let lookup = Dictionary(uniqueKeysWithValues: grades.map { ($0.id, $0) })
+        let a = problem(grade: 4, sector: grotto, color: .yellow)
+        let b = problem(grade: 4, sector: grotto, color: .blue)
+        let c = problem(grade: 4, sector: slab, color: .yellow)
+        let d = problem(grade: 6, sector: grotto, color: .yellow)
+        let all = [a, b, c, d]
+
+        let fours = ProblemFilter(gradeOrders: 4...4)
+        #expect(Coverage.count(problems: all, grades: lookup, toppedProblemIds: [a.id], filter: fours, timeZone: warsaw)
+                == CoverageCount(active: 3, topped: 1))
+
+        // "Not done by me" would leave 0 done: the counter ignores it.
+        let foursInGrottoNotDone = ProblemFilter(gradeOrders: 4...4, sectorIds: [grotto], onlyNotTopped: true)
+        #expect(Coverage.count(problems: all, grades: lookup, toppedProblemIds: [a.id],
+                               filter: foursInGrottoNotDone, timeZone: warsaw)
+                == CoverageCount(active: 2, topped: 1))
+
+        #expect(Coverage.count(problems: all, grades: lookup, toppedProblemIds: [a.id, d.id],
+                               filter: ProblemFilter(), timeZone: warsaw)
+                == CoverageCount(active: 4, topped: 2))
+    }
+
     @Test func coverageCountsActiveProblemsPerGrade() {
         let a = problem(grade: 4, sector: grotto, color: .yellow)
         let b = problem(grade: 4, sector: slab, color: .blue)
@@ -60,6 +116,14 @@ struct CatalogTests {
         #expect(AscentResult.next(after: .top) == .flash)
         #expect(AscentResult.next(after: .flash) == .project)
         #expect(AscentResult.next(after: .project) == nil)
+    }
+
+    @Test func tapCycleBackwardsUndoesTheCycle() {
+        for current in [nil] + AscentResult.allCases.map(Optional.some) {
+            #expect(AscentResult.previous(before: AscentResult.next(after: current)) == current)
+        }
+        #expect(AscentResult.previous(before: nil, canFlash: true) == .project)
+        #expect(AscentResult.previous(before: .project, canFlash: false) == .top)
     }
 
     @Test func inviteCodesMatchTheDatabaseNormalization() {

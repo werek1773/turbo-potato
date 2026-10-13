@@ -246,10 +246,27 @@ public struct ProblemStats: Hashable, Codable, Sendable {
     public let perceivedOk: Int?
     public let perceivedHard: Int?
     public let limiters: [String: Int]
+    /// When the daily snapshot was computed.
+    public let computedAt: Date?
+
+    public init(problemId: UUID, climbers: Int?, tops: Int? = nil, flashes: Int? = nil,
+                perceivedSoft: Int? = nil, perceivedOk: Int? = nil, perceivedHard: Int? = nil,
+                limiters: [String: Int] = [:], computedAt: Date? = nil) {
+        self.problemId = problemId
+        self.climbers = climbers
+        self.tops = tops
+        self.flashes = flashes
+        self.perceivedSoft = perceivedSoft
+        self.perceivedOk = perceivedOk
+        self.perceivedHard = perceivedHard
+        self.limiters = limiters
+        self.computedAt = computedAt
+    }
 
     enum CodingKeys: String, CodingKey {
         case climbers, tops, flashes, limiters
         case problemId = "problem_id"
+        case computedAt = "computed_at"
         case perceivedSoft = "perceived_soft"
         case perceivedOk = "perceived_ok"
         case perceivedHard = "perceived_hard"

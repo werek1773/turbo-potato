@@ -98,7 +98,10 @@ struct GymView: View {
                 withAnimation(.snappy) { selection = sector.id }
             }
             if !catalog.coverage.isEmpty {
-                GradeRow(catalog: catalog)
+                VStack(alignment: .leading, spacing: 6) {
+                    GradeRow(catalog: catalog)
+                    CatalogFilterBar(catalog: catalog)
+                }
             }
             if let plan = catalog.gym.floorPlan {
                 GymMapView(
@@ -139,13 +142,18 @@ struct GymView: View {
     }
 
     private func reload() async {
-        do { try await catalog.load() } catch { app.report(error) }
+        do {
+            try await catalog.load()
+        } catch {
+            // Offline with the catalog cached on the device: it is on screen already.
+            if !(error.isConnectivityError && catalog.cachedAt != nil) { app.report(error) }
+        }
     }
 }
 
-/// The gym's name and one sentence on what matters today: the next reset
-/// and what is new since the last visit. Both are links: the reset shows its
-/// wall on the map, the new problems filter the map.
+/// The gym's name and one sentence on what matters today: the walls reset
+/// next and what is new since the last visit. Both are links: each wall
+/// shows itself on the map, the new problems filter the map.
 private struct GymHeader: View {
     @Bindable var catalog: GymCatalog
     let onShowSector: (Sector) -> Void
@@ -176,9 +184,14 @@ private struct GymHeader: View {
 
     private var sentence: AttributedString? {
         var parts: [AttributedString] = []
-        if let reset = catalog.upcomingResets.first {
-            var part = AttributedString("Przykrętka \(ResetBadge.relative(reset.daysLeft, date: reset.date)): ")
-            part += link(reset.sector.name, to: "reset")
+        if let next = catalog.upcomingResets.first {
+            // Every wall reset that day: "Połóg i Trójkąt".
+            let walls = catalog.upcomingResets.filter { $0.date == next.date }.map(\.sector)
+            var part = AttributedString("Przykrętka \(ResetBadge.relative(next.daysLeft, date: next.date)): ")
+            for (index, sector) in walls.enumerated() {
+                if index > 0 { part += AttributedString(index == walls.count - 1 ? " i " : ", ") }
+                part += link(sector.name, to: "reset/\(sector.id.uuidString)")
+            }
             part += AttributedString(".")
             parts.append(part)
         }
@@ -201,9 +214,9 @@ private struct GymHeader: View {
     private func handle(_ url: URL) {
         switch url.host() {
         case "reset":
-            if let sector = catalog.upcomingResets.first?.sector { onShowSector(sector) }
+            let id = UUID(uuidString: url.lastPathComponent)
+            if let sector = catalog.sectors.first(where: { $0.id == id }) { onShowSector(sector) }
         case "new":
-            catalog.filter.gradeOrders = nil
             catalog.filter.setAfter = catalog.filter.setAfter == nil ? catalog.lastVisit : nil
         default:
             break
@@ -219,7 +232,8 @@ private struct GymHeader: View {
     }
 }
 
-/// Grades as plain numbers; the chosen one gets a pen circle drawn around it.
+/// Grades as plain numbers; the chosen ones get a pen circle drawn around
+/// them. Combines with the other filters. At large text sizes the row scrolls.
 struct GradeRow: View {
     @Bindable var catalog: GymCatalog
 
@@ -228,18 +242,29 @@ struct GradeRow: View {
     }
 
     var body: some View {
+        ViewThatFits(in: .horizontal) {
+            row
+            ScrollView(.horizontal, showsIndicators: false) {
+                row
+            }
+            .scrollClipDisabled()
+        }
+        .sensoryFeedback(.selection, trigger: catalog.filter.gradeOrders)
+    }
+
+    private var row: some View {
         HStack(spacing: 0) {
             ForEach(grades) { grade in
                 let range = grade.sortOrder...grade.sortOrder
-                let isOn = catalog.filter.gradeOrders == range
+                let isOn = catalog.filter.gradeOrders?.contains(grade.sortOrder) ?? false
                 Button {
-                    catalog.filter.setAfter = nil
-                    catalog.filter.gradeOrders = isOn ? nil : range
+                    catalog.filter.gradeOrders = catalog.filter.gradeOrders == range ? nil : range
                 } label: {
                     Text(grade.label)
                         .font(.display(.title3))
                         .foregroundStyle(Palette.ink)
-                        .frame(width: 34, height: 38)
+                        .fixedSize()
+                        .frame(minWidth: 34, minHeight: 44)
                         .background {
                             if isOn {
                                 PenCircle()
@@ -247,14 +272,14 @@ struct GradeRow: View {
                                     .id(grade.id)
                             }
                         }
+                        .frame(maxWidth: .infinity)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .frame(maxWidth: .infinity)
                 .accessibilityLabel("Wycena \(grade.label)")
                 .accessibilityAddTraits(isOn ? .isSelected : [])
             }
         }
-        .sensoryFeedback(.selection, trigger: catalog.filter.gradeOrders)
     }
 }
 
@@ -266,7 +291,7 @@ struct PenCircle: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        TimelineView(.periodic(from: start, by: 1 / StopMotion.fps)) { timeline in
+        TimelineView(.stopMotion(paused: reduceMotion)) { timeline in
             let frame = reduceMotion ? 3 : StopMotion.frame(at: timeline.date, since: start)
             Canvas { context, size in
                 let scale = min(size.width, size.height) / 44
@@ -296,15 +321,17 @@ private struct SectorPeekCard: View {
         let count = catalog.problems(in: sector).count
         let topped = catalog.toppedCount(in: sector)
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(sector.name)
-                    .font(.display(.title3))
-                Spacer()
-                if count > 0 {
-                    Text("\(topped) z \(count) zrobione")
-                        .font(.subheadline.monospacedDigit())
-                        .foregroundStyle(Palette.muted)
-                        .contentTransition(.numericText())
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(sector.name)
+                        .font(.display(.title3))
+                    Spacer()
+                    progress(topped: topped, count: count)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(sector.name)
+                        .font(.display(.title3))
+                    progress(topped: topped, count: count)
                 }
             }
             if let reset = catalog.upcomingReset(for: sector) {
@@ -315,7 +342,10 @@ private struct SectorPeekCard: View {
                     photo: photo,
                     problems: catalog.problems(in: sector),
                     highlighted: catalog.visibleProblemIds,
-                    topped: catalog.toppedProblemIds
+                    topped: catalog.toppedProblemIds,
+                    gradeLabels: catalog.gradesById.mapValues(\.label),
+                    showsGradeLabels: false,
+                    sectorName: sector.name
                 )
                 .frame(maxHeight: 220)
             } else {
@@ -325,6 +355,16 @@ private struct SectorPeekCard: View {
             }
             Button("Zobacz problemy", action: onOpen)
                 .buttonStyle(.pill)
+        }
+    }
+
+    @ViewBuilder
+    private func progress(topped: Int, count: Int) -> some View {
+        if count > 0 {
+            Text("\(topped) z \(count) zrobione")
+                .font(.subheadline.monospacedDigit())
+                .foregroundStyle(Palette.muted)
+                .contentTransition(.numericText())
         }
     }
 }

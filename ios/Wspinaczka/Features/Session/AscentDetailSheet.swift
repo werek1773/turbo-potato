@@ -7,14 +7,12 @@ struct AscentDetailSheet: View {
     let log: SessionLog
     let problem: ActiveProblem
 
-    @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @State private var result: AscentResult
     @State private var attempts: AttemptsBucket?
     @State private var perceived: PerceivedGrade?
     @State private var limiters: Set<Limiter>
     @State private var note: String
-    @State private var isSaving = false
 
     init(log: SessionLog, problem: ActiveProblem) {
         self.log = log
@@ -105,7 +103,8 @@ struct AscentDetailSheet: View {
                 if log.results[problem.id] != nil {
                     Section {
                         Button("Usuń z tej sesji", role: .destructive) {
-                            run { try await log.set(problem, result: nil) }
+                            log.set(problem, result: nil)
+                            dismiss()
                         }
                     }
                 }
@@ -117,39 +116,22 @@ struct AscentDetailSheet: View {
                     Button("Anuluj") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    if isSaving {
-                        ProgressView()
-                    } else {
-                        Button("Zapisz") {
-                            let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
-                            run {
-                                try await log.set(
-                                    problem,
-                                    result: result,
-                                    attempts: attempts,
-                                    perceivedGrade: perceived,
-                                    limiters: Array(limiters),
-                                    note: trimmed.isEmpty ? nil : trimmed
-                                )
-                            }
-                        }
+                    Button("Zapisz") {
+                        let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
+                        // Queued in the outbox: shown at once, sent when online.
+                        log.set(
+                            problem,
+                            result: result,
+                            attempts: attempts,
+                            perceivedGrade: perceived,
+                            limiters: Array(limiters),
+                            note: trimmed.isEmpty ? nil : trimmed
+                        )
+                        dismiss()
                     }
                 }
             }
         }
         .presentationDetents([.large])
-    }
-
-    private func run(_ action: @escaping () async throws -> Void) {
-        isSaving = true
-        Task {
-            defer { isSaving = false }
-            do {
-                try await action()
-                dismiss()
-            } catch {
-                app.report(error)
-            }
-        }
     }
 }

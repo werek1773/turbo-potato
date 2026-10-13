@@ -93,13 +93,7 @@ struct PinEditorView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
 
-            AsyncImage(url: catalog.backend.photoURL(for: photo)) { phase in
-                if case let .success(image) = phase {
-                    image.resizable()
-                } else {
-                    Rectangle().fill(.quaternary).overlay(ProgressView())
-                }
-            }
+            CachedPhotoView(photo: photo)
             .aspectRatio(photo.aspectRatio, contentMode: .fit)
             .overlay {
                 GeometryReader { proxy in
@@ -112,6 +106,15 @@ struct PinEditorView: View {
                             )
                             handleTap(at: point)
                         }
+                        // VoiceOver cannot point at the wall: the photo's action
+                        // puts the new (or moved) pin in the middle, to drag later.
+                        .accessibilityElement()
+                        .accessibilityLabel("Zdjęcie sektora \(sector.name)")
+                        .accessibilityHint(moving == nil
+                                           ? "Stuknij dwukrotnie, aby dodać problem na środku zdjęcia."
+                                           : "Stuknij dwukrotnie, aby przenieść pinezkę na środek zdjęcia.")
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityAction { handleTap(at: CGPoint(x: 0.5, y: 0.5)) }
                     ForEach(problems) { problem in
                         Button {
                             if moving == nil { editing = problem }
@@ -119,12 +122,14 @@ struct PinEditorView: View {
                             ProblemPin(
                                 color: problem.holdColor,
                                 label: grades[problem.gradeId]?.label,
-                                isHighlighted: moving == nil || moving?.id == problem.id
+                                isHighlighted: moving == nil || moving?.id == problem.id,
+                                sectorName: sector.name
                             )
                             .frame(width: 44, height: 44)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        .accessibilityHint(moving == nil ? "Stuknij dwukrotnie, aby edytować." : "")
                         .position(x: problem.pinX * proxy.size.width, y: problem.pinY * proxy.size.height)
                     }
                 }

@@ -71,6 +71,18 @@ struct GymAdminView: View {
 
     var body: some View {
         Form {
+            if app.access.isStaff(of: gym.id) {
+                Section {
+                    NavigationLink {
+                        GymStatsView(gym: gym)
+                    } label: {
+                        Label("Statystyki ścianki", systemImage: "chart.bar.xaxis")
+                    }
+                } footer: {
+                    Text("Anonimowa migawka dobowa: wycena społeczności, popularność, odsetek przejść.")
+                }
+            }
+
             if app.access.isManager(of: gym.id) {
                 Section {
                     Toggle("Ścianka widoczna dla klientów", isOn: $isPublished)

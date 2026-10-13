@@ -114,8 +114,12 @@ struct PillButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.body.weight(.semibold))
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
             .frame(maxWidth: .infinity)
-            .frame(height: 52)
+            // Grows with large text instead of clipping it.
+            .frame(minHeight: 52)
             .foregroundStyle(isProminent ? Palette.paper : Palette.ink)
             .background(isProminent ? (configuration.isPressed ? Palette.mossDark : Palette.moss) : Palette.paper,
                         in: Capsule())

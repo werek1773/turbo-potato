@@ -87,6 +87,7 @@ struct GymMapView: View {
                     ForEach(Array(allDots.enumerated()), id: \.element.sector.id) { order, item in
                         if let path = item.sector.mapPath {
                             wall(item.sector, path: path, order: order, frame: frame)
+                                .accessibilityValue(accessibilityValue(item.sector, dots: item.dots))
                             holds(item.dots, path: path, order: order, frame: frame, sinceFilter: sinceFilter, size: size)
                         }
                     }
@@ -182,9 +183,25 @@ struct GymMapView: View {
         }
         .animation(.snappy, value: selection)
             .accessibilityElement()
-            .accessibilityLabel(sector.name)
-            .accessibilityAddTraits(.isButton)
-            .accessibilityAction { selection = sector.id }
+            .accessibilityLabel("Sektor \(sector.name)")
+            .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+            .accessibilityHint(isSelected ? "Stuknij dwukrotnie, aby odznaczyć." : "Stuknij dwukrotnie, aby zobaczyć jego problemy.")
+            .accessibilityAction { selection = isSelected ? nil : sector.id }
+    }
+
+    /// "12 problemów, zrobione 4, pasuje do filtrów 3, przykrętka wkrótce".
+    private func accessibilityValue(_ sector: Sector, dots: [MapDot]) -> String {
+        let wallStyle = style(sector)
+        var parts: [String] = []
+        if wallStyle.dashed { parts.append("brak zdjęcia") }
+        if !dots.isEmpty {
+            parts.append(Polish.problems(dots.count))
+            parts.append("zrobione \(dots.filter(\.isTopped).count)")
+            let matching = dots.filter(\.isMatching).count
+            if matching < dots.count { parts.append("pasuje do filtrów \(matching)") }
+        }
+        if wallStyle.isResetSoon { parts.append("przykrętka wkrótce") }
+        return parts.joined(separator: ", ")
     }
 
     private func holds(_ dots: [MapDot], path: [MapPoint], order: Int, frame: Int, sinceFilter: Int, size: CGSize) -> some View {
@@ -197,7 +214,8 @@ struct GymMapView: View {
                 let scale = appear < 0 ? 0 : (appear < 1 ? 1.5 : 1)
                 // Filter: two steps, half-way then the final opacity.
                 let target = dot.isMatching ? 1.0 : 0.12
-                let opacity = changedDots.contains(dot.id) && sinceFilter < 1 ? 0.55 : target
+                // With Reduce Motion the clock stands still: straight to the final opacity.
+                let opacity = !reduceMotion && changedDots.contains(dot.id) && sinceFilter < 1 ? 0.55 : target
                 Circle()
                     .fill(dot.color.swatch)
                     .frame(width: 8, height: 8)

@@ -13,8 +13,14 @@ final class GymCatalog {
     private(set) var sectors: [Sector] = []
     private(set) var photos: [UUID: SectorPhoto] = [:]
     private(set) var problems: [ActiveProblem] = []
+    /// My ascents at this gym, with writes still in the outbox applied.
     private(set) var myAscents: [Ascent] = []
     private(set) var isLoading = false
+    /// When the data on screen comes from the device's cache (offline or
+    /// not refreshed yet): the time it was downloaded.
+    private(set) var cachedAt: Date?
+    /// My ascents as last confirmed by the server — what the cache stores.
+    @ObservationIgnored private var serverAscents: [Ascent] = []
 
     var filter = ProblemFilter()
 
@@ -47,7 +53,9 @@ final class GymCatalog {
     func load() async throws {
         isLoading = true
         defer { isLoading = false }
+        restoreFromCacheIfEmpty()
 
+        let sentBefore = JournalOutbox.shared.sentSequence
         async let grades = backend.grades(gymId: gym.id)
         async let sectors = backend.sectors(gymId: gym.id)
         async let problems = backend.activeProblems(gymId: gym.id)
@@ -61,7 +69,54 @@ final class GymCatalog {
         self.sectors = loadedSectors
         self.photos = Dictionary(uniqueKeysWithValues: loadedPhotos.map { ($0.id, $0) })
         self.problems = try await problems
-        self.myAscents = try await ascents
+        setServerAscents(try await ascents, sentBefore: sentBefore)
+        cachedAt = nil
+        saveToCache()
+    }
+
+    // MARK: My ascents & cache
+
+    /// Re-downloads only my ascents, e.g. once the outbox has been sent.
+    func refreshMyAscents() async throws {
+        let sentBefore = JournalOutbox.shared.sentSequence
+        setServerAscents(try await backend.myAscents(gymId: gym.id), sentBefore: sentBefore)
+        saveToCache()
+    }
+
+    /// Shows a journal write at once, before it reaches the server.
+    func applyLocal(_ write: PendingAscent) {
+        myAscents = Outbox.merge(server: myAscents, pending: [write])
+    }
+
+    /// `sentBefore`: the outbox's `sentSequence` when the download started;
+    /// writes sent since then may be missing from `ascents`.
+    private func setServerAscents(_ ascents: [Ascent], sentBefore: Int? = nil) {
+        let outbox = JournalOutbox.shared
+        let sentMeanwhile = sentBefore.map { outbox.ascentsSent(after: $0, gymId: gym.id) } ?? []
+        serverAscents = Outbox.merge(server: ascents, pending: sentMeanwhile)
+        myAscents = Outbox.merge(server: serverAscents, pending: outbox.pendingAscents(gymId: gym.id))
+    }
+
+    private func restoreFromCacheIfEmpty() {
+        guard grades.isEmpty, sectors.isEmpty, let userId = backend.client.auth.currentUser?.id,
+              let snapshot = LocalStore.catalog(userId: userId, gymId: gym.id) else { return }
+        grades = snapshot.grades
+        sectors = snapshot.sectors
+        photos = Dictionary(snapshot.photos.map { ($0.id, $0) }, uniquingKeysWith: { _, last in last })
+        problems = snapshot.problems
+        setServerAscents(snapshot.myAscents)
+        cachedAt = snapshot.savedAt
+    }
+
+    private func saveToCache() {
+        guard let userId = backend.client.auth.currentUser?.id else { return }
+        let snapshot = CatalogSnapshot(
+            gymId: gym.id, grades: grades, sectors: sectors, photos: Array(photos.values),
+            problems: problems, myAscents: serverAscents
+        )
+        Task.detached(priority: .utility) {
+            LocalStore.saveCatalog(snapshot, userId: userId)
+        }
     }
 
     var areas: [SectorArea] { Sector.groupedByArea(sectors) }

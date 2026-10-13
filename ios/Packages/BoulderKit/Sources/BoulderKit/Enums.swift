@@ -33,6 +33,19 @@ public enum AscentResult: String, Codable, Sendable, CaseIterable {
         return candidate
     }
 
+    /// The tap cycle backwards (VoiceOver's swipe down on a pin):
+    /// none → project → flash → top → none, flash skipped as above.
+    public static func previous(before current: AscentResult?, canFlash: Bool = true) -> AscentResult? {
+        let candidate: AscentResult? = switch current {
+        case nil: .project
+        case .project: .flash
+        case .flash: .top
+        case .top: nil
+        }
+        if candidate == .flash && !canFlash { return .top }
+        return candidate
+    }
+
     public var isTop: Bool { self != .project }
 
     /// Higher is better; used to pick the best result for a problem.

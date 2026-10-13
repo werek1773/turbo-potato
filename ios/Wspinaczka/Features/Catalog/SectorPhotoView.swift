@@ -8,27 +8,27 @@ struct SectorPhotoView: View {
     let highlighted: Set<UUID>
     let topped: Set<UUID>
     var gradeLabels: [UUID: String] = [:]
+    /// Small photos keep the pins plain; VoiceOver still reads the grade.
+    var showsGradeLabels = true
+    var sectorName: String?
 
     var body: some View {
-        AsyncImage(url: Backend.shared.photoURL(for: photo)) { phase in
-            switch phase {
-            case let .success(image):
-                image.resizable()
-            default:
-                Rectangle().fill(.quaternary)
-            }
-        }
+        CachedPhotoView(photo: photo)
         .aspectRatio(photo.aspectRatio, contentMode: .fit)
         .overlay {
             GeometryReader { proxy in
                 ForEach(problems) { problem in
                     ProblemPin(
                         color: problem.holdColor,
-                        label: gradeLabels[problem.gradeId],
+                        label: showsGradeLabels ? gradeLabels[problem.gradeId] : nil,
                         isHighlighted: highlighted.contains(problem.id),
-                        isTopped: topped.contains(problem.id)
+                        isTopped: topped.contains(problem.id),
+                        gradeName: gradeLabels[problem.gradeId],
+                        sectorName: sectorName
                     )
                     .position(x: problem.pinX * proxy.size.width, y: problem.pinY * proxy.size.height)
+                    // Filtered-out pins are only dimmed on screen; VoiceOver skips them.
+                    .accessibilityHidden(!highlighted.contains(problem.id))
                 }
             }
         }
@@ -44,6 +44,11 @@ struct ProblemPin: View {
     var isTopped = false
     /// Result logged in the session being summarized.
     var sessionResult: AscentResult?
+    /// For VoiceOver: the grade when it is not drawn in the pin, and the sector.
+    var gradeName: String?
+    var sectorName: String?
+    /// On the session screen the pin's value is the day's result, "brak" included.
+    var isSessionPin = false
 
     private var ink: Color { color == .white || color == .yellow ? .black : .white }
 
@@ -63,6 +68,18 @@ struct ProblemPin: View {
                         .foregroundStyle(ink)
                 }
             }
+            .overlay(alignment: .bottomTrailing) {
+                // Done is never told by the blue ring alone: a tick when the grade fills the pin.
+                if isTopped && label != nil && sessionResult == nil {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 7, weight: .heavy))
+                        .foregroundStyle(.white)
+                        .frame(width: 13, height: 13)
+                        .background(Palette.sky, in: Circle())
+                        .overlay(Circle().stroke(.white, lineWidth: 1))
+                        .offset(x: 4, y: 4)
+                }
+            }
             .overlay(alignment: .topTrailing) {
                 if let sessionResult {
                     Pictogram(kind: sessionResult.pictogram, size: 18)
@@ -72,6 +89,14 @@ struct ProblemPin: View {
             }
             .shadow(radius: 2)
             .opacity(isHighlighted || sessionResult != nil ? 1 : 0.25)
-            .accessibilityLabel("Problem \(label.map { "\($0), " } ?? "")\(color.polishName)\(isTopped ? ", zrobiony" : "")")
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Self.accessibilityLabel(grade: gradeName ?? label, color: color, sector: sectorName))
+            .accessibilityValue(accessibilityValue)
+    }
+
+    private var accessibilityValue: String {
+        if let sessionResult { return sessionResult.polishName.lowercased() }
+        if isSessionPin { return "brak" }
+        return isTopped ? "zrobiony" : ""
     }
 }
