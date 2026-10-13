@@ -11,6 +11,9 @@ struct SectorDetailView: View {
     @State private var isTakingPhoto = false
     @State private var pinEditor: PinEditorTarget?
     @State private var editorAfterPhoto = false
+    @State private var selectedId: UUID?
+    @State private var routeEditor: ActiveProblem?
+    @State private var isDetecting = false
 
     private var sector: Sector? { catalog.sectors.first { $0.id == sectorId } }
     private var isStaff: Bool { app.access.isStaff(of: catalog.gym.id) }
@@ -28,9 +31,31 @@ struct SectorDetailView: View {
                             problems: catalog.problems(in: sector),
                             highlighted: catalog.visibleProblemIds,
                             topped: catalog.toppedProblemIds,
-                            gradeLabels: catalog.gradesById.mapValues(\.label)
+                            gradeLabels: catalog.gradesById.mapValues(\.label),
+                            routes: catalog.routes,
+                            fresh: Set(catalog.problems(in: sector).filter { catalog.freshness(of: $0) != nil }.map(\.id)),
+                            selected: selectedId,
+                            onSelect: { problem in
+                                selectedId = selectedId == problem.id ? nil : problem.id
+                            }
                         )
-                        problemSummary(sector)
+                        .sensoryFeedback(.selection, trigger: selectedId)
+                        if let problem = catalog.problems(in: sector).first(where: { $0.id == selectedId }) {
+                            ProblemCard(
+                                problem: problem,
+                                grade: catalog.gradesById[problem.gradeId]?.label,
+                                route: catalog.route(of: problem),
+                                freshness: catalog.freshness(of: problem),
+                                changedAfterMyTop: catalog.lastTop(of: problem).map {
+                                    Freshness.changedSince(problem, toppedOn: $0, timeZone: catalog.gym.timeZone)
+                                } ?? false,
+                                isStaff: isStaff,
+                                onEditRoute: { routeEditor = problem }
+                            )
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                        } else {
+                            problemSummary(sector)
+                        }
                     } else {
                         VStack(spacing: 8) {
                             DrawingView(drawing: .chalk)
@@ -67,10 +92,14 @@ struct SectorDetailView: View {
                 Menu {
                     Button(catalog.photo(of: sector) == nil ? "Dodaj zdjęcie sektora" : "Przykrętka / nowe zdjęcie",
                            systemImage: "camera") { isTakingPhoto = true }
-                    if catalog.photo(of: sector) != nil {
+                    if let photo = catalog.photo(of: sector) {
                         Button("Problemy i pinezki", systemImage: "mappin.and.ellipse") {
                             pinEditor = PinEditorTarget(sectorId: sector.id)
                         }
+                        Button("Wykryj chwyty na zdjęciu", systemImage: "circle.dotted") {
+                            Task { await detectHolds(on: photo) }
+                        }
+                        .disabled(isDetecting)
                     }
                     Button("Data następnej przykrętki", systemImage: "calendar.badge.clock") {
                         isPlanningReset = true
@@ -106,9 +135,19 @@ struct SectorDetailView: View {
         .fullScreenCover(item: $pinEditor) { target in
             PinEditorView(catalog: catalog, sectorId: target.sectorId)
         }
+        .fullScreenCover(item: $routeEditor) { problem in
+            RouteEditorView(catalog: catalog, problem: problem)
+        }
+        .animation(.snappy, value: selectedId)
         .refreshable {
             do { try await catalog.load() } catch { app.report(error) }
         }
+    }
+
+    private func detectHolds(on photo: SectorPhoto) async {
+        isDetecting = true
+        defer { isDetecting = false }
+        do { try await catalog.detectHolds(on: photo) } catch { app.report(error) }
     }
 
     private func problemSummary(_ sector: Sector) -> some View {

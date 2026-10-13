@@ -70,7 +70,8 @@ extension Backend {
         expectedPhotoId: UUID,
         pinX: Double,
         pinY: Double,
-        draft: ProblemDraft
+        draft: ProblemDraft,
+        route: [RouteStep]? = nil
     ) async throws -> UUID {
         struct Params: Encodable, Sendable {
             let p_sector_id: UUID
@@ -82,10 +83,11 @@ extension Backend {
             let p_style_tags: [StyleTag]
             let p_name: String?
             let p_problem_id: UUID
+            let p_route: [RouteStep]?
 
             enum CodingKeys: String, CodingKey {
                 case p_sector_id, p_expected_photo_id, p_pin_x, p_pin_y, p_grade_id
-                case p_hold_color, p_style_tags, p_name, p_problem_id
+                case p_hold_color, p_style_tags, p_name, p_problem_id, p_route
             }
 
             func encode(to encoder: Encoder) throws {
@@ -99,6 +101,7 @@ extension Backend {
                 try container.encode(p_style_tags, forKey: .p_style_tags)
                 try container.encode(p_name, forKey: .p_name)
                 try container.encode(p_problem_id, forKey: .p_problem_id)
+                try container.encode(p_route, forKey: .p_route)
             }
         }
         guard let gradeId = draft.gradeId else { throw ProblemDraft.MissingGrade() }
@@ -111,7 +114,8 @@ extension Backend {
             p_hold_color: draft.color,
             p_style_tags: draft.styleTags.sorted { $0.rawValue < $1.rawValue },
             p_name: draft.trimmedName,
-            p_problem_id: problemId
+            p_problem_id: problemId,
+            p_route: route
         ))
         .execute()
         .value
@@ -155,6 +159,79 @@ extension Backend {
             let p_pin_y: Double
         }
         try await client.rpc("move_problem_pin", params: Params(p_problem_id: problemId, p_pin_x: pinX, p_pin_y: pinY)).execute()
+    }
+
+    /// Replaces the problem's route on the current photo; an empty route clears it.
+    /// `carryOver` is a reset moving the route to a new photo, not a change.
+    func setProblemRoute(problemId: UUID, expectedPhotoId: UUID, route: [RouteStep], carryOver: Bool = false) async throws {
+        struct Params: Encodable, Sendable {
+            let p_problem_id: UUID
+            let p_expected_photo_id: UUID
+            let p_route: [RouteStep]
+            let p_carry_over: Bool
+        }
+        try await client.rpc("set_problem_route", params: Params(
+            p_problem_id: problemId, p_expected_photo_id: expectedPhotoId, p_route: route, p_carry_over: carryOver
+        )).execute()
+    }
+
+    /// Stores what the detector found on a photo (replacing earlier unused suggestions).
+    @discardableResult
+    func replaceAutoHolds(photoId: UUID, holds: [DetectedHold]) async throws -> Int {
+        struct Hold: Encodable, Sendable {
+            let id: UUID
+            let x: Double
+            let y: Double
+            let r: Double
+            let color: HoldColor
+        }
+        struct Params: Encodable, Sendable {
+            let p_photo_id: UUID
+            let p_holds: [Hold]
+        }
+        let rows = holds.map { Hold(id: UUID(), x: $0.x, y: $0.y, r: $0.r, color: $0.color) }
+        return try await client.rpc("replace_auto_holds", params: Params(p_photo_id: photoId, p_holds: rows))
+            .execute()
+            .value
+    }
+
+    /// Adds a hold by hand, or moves or recolors one.
+    @discardableResult
+    func upsertPhotoHold(_ hold: PhotoHold) async throws -> UUID {
+        struct Params: Encodable, Sendable {
+            let p_hold_id: UUID
+            let p_photo_id: UUID
+            let p_x: Double
+            let p_y: Double
+            let p_r: Double
+            let p_color: HoldColor?
+
+            enum CodingKeys: String, CodingKey {
+                case p_hold_id, p_photo_id, p_x, p_y, p_r, p_color
+            }
+
+            func encode(to encoder: Encoder) throws {
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                try container.encode(p_hold_id, forKey: .p_hold_id)
+                try container.encode(p_photo_id, forKey: .p_photo_id)
+                try container.encode(p_x, forKey: .p_x)
+                try container.encode(p_y, forKey: .p_y)
+                try container.encode(p_r, forKey: .p_r)
+                try container.encode(p_color, forKey: .p_color)
+            }
+        }
+        return try await client.rpc("upsert_photo_hold", params: Params(
+            p_hold_id: hold.id, p_photo_id: hold.photoId, p_x: hold.x, p_y: hold.y, p_r: hold.r, p_color: hold.color
+        ))
+        .execute()
+        .value
+    }
+
+    func deletePhotoHold(id: UUID) async throws {
+        struct Params: Encodable, Sendable {
+            let p_hold_id: UUID
+        }
+        try await client.rpc("delete_photo_hold", params: Params(p_hold_id: id)).execute()
     }
 
     func setProblemRemoved(problemId: UUID, removed: Bool) async throws {

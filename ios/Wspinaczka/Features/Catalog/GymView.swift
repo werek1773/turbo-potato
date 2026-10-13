@@ -150,9 +150,18 @@ private struct GymHeader: View {
     @Bindable var catalog: GymCatalog
     let onShowSector: (Sector) -> Void
 
-    private var newSinceVisit: Int? {
-        guard let lastVisit = catalog.lastVisit else { return nil }
-        return catalog.problems.filter { ClimbingDay.localDate(for: $0.setAt, in: catalog.gym.timeZone) > lastVisit }.count
+    /// Problems set, and problems regraded or rerouted, since the last visit.
+    private var sinceVisit: (new: Int, changed: Int)? {
+        guard catalog.lastVisit != nil else { return nil }
+        var new = 0, changed = 0
+        for problem in catalog.problems {
+            switch catalog.freshness(of: problem) {
+            case .new: new += 1
+            case .changed: changed += 1
+            case nil: break
+            }
+        }
+        return (new, changed)
     }
 
     var body: some View {
@@ -182,8 +191,13 @@ private struct GymHeader: View {
             part += AttributedString(".")
             parts.append(part)
         }
-        if let count = newSinceVisit, count > 0 {
-            var part = link(Self.newProblems(count), to: "new")
+        if let counts = sinceVisit, counts.new + counts.changed > 0 {
+            let text = switch (counts.new, counts.changed) {
+            case (0, let changed): Self.changedProblems(changed)
+            case (let new, 0): Self.newProblems(new)
+            case let (new, changed): "\(Self.newProblems(new)) i \(Self.changedProblems(changed, short: true))"
+            }
+            var part = link(text, to: "new")
             part += AttributedString(" od Twojej ostatniej wizyty.")
             parts.append(part)
         }
@@ -216,6 +230,16 @@ private struct GymHeader: View {
         if count == 1 { return "1 nowy problem" }
         if (2...4).contains(last) && !(12...14).contains(lastTwo) { return "\(count) nowe problemy" }
         return "\(count) nowych problemów"
+    }
+
+    /// "1 zmieniony problem", "3 zmienione", "7 zmienionych"; `short` drops the noun.
+    static func changedProblems(_ count: Int, short: Bool = false) -> String {
+        let lastTwo = count % 100, last = count % 10
+        if count == 1 { return short ? "1 zmieniony" : "1 zmieniony problem" }
+        if (2...4).contains(last) && !(12...14).contains(lastTwo) {
+            return short ? "\(count) zmienione" : "\(count) zmienione problemy"
+        }
+        return short ? "\(count) zmienionych" : "\(count) zmienionych problemów"
     }
 }
 
@@ -315,7 +339,10 @@ private struct SectorPeekCard: View {
                     photo: photo,
                     problems: catalog.problems(in: sector),
                     highlighted: catalog.visibleProblemIds,
-                    topped: catalog.toppedProblemIds
+                    topped: catalog.toppedProblemIds,
+                    gradeLabels: catalog.gradesById.mapValues(\.label),
+                    routes: catalog.routes,
+                    fresh: Set(catalog.problems(in: sector).filter { catalog.freshness(of: $0) != nil }.map(\.id))
                 )
                 .frame(maxHeight: 220)
             } else {

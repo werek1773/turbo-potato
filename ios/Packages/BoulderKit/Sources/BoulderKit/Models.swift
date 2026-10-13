@@ -135,10 +135,14 @@ public struct ActiveProblem: Identifiable, Hashable, Codable, Sendable {
     public let photoId: UUID
     public var pinX: Double
     public var pinY: Double
+    /// When staff last changed the grade or the route; nil when never.
+    public var changedAt: Date?
+    public var changeKind: ChangeKind?
 
     public init(id: UUID, gymId: UUID, sectorId: UUID, gradeId: UUID, holdColor: HoldColor,
                 name: String? = nil, styleTags: [StyleTag] = [], setAt: Date,
-                photoId: UUID, pinX: Double, pinY: Double) {
+                photoId: UUID, pinX: Double, pinY: Double,
+                changedAt: Date? = nil, changeKind: ChangeKind? = nil) {
         self.id = id
         self.gymId = gymId
         self.sectorId = sectorId
@@ -150,6 +154,8 @@ public struct ActiveProblem: Identifiable, Hashable, Codable, Sendable {
         self.photoId = photoId
         self.pinX = pinX
         self.pinY = pinY
+        self.changedAt = changedAt
+        self.changeKind = changeKind
     }
 
     enum CodingKeys: String, CodingKey {
@@ -163,6 +169,90 @@ public struct ActiveProblem: Identifiable, Hashable, Codable, Sendable {
         case photoId = "photo_id"
         case pinX = "pin_x"
         case pinY = "pin_y"
+        case changedAt = "changed_at"
+        case changeKind = "change_kind"
+    }
+}
+
+/// A hold on a sector photo: centre (0...1 of the photo) and radius (share
+/// of the photo's width). Detected by the app or added by staff.
+public struct PhotoHold: Identifiable, Hashable, Codable, Sendable {
+    public let id: UUID
+    public let photoId: UUID
+    public let sectorId: UUID
+    public var x: Double
+    public var y: Double
+    public var r: Double
+    public var color: HoldColor?
+    public var source: HoldSource
+
+    /// Radius of a hold added by a tap: a medium hold.
+    public static let defaultRadius = 0.02
+
+    public init(id: UUID = UUID(), photoId: UUID, sectorId: UUID, x: Double, y: Double, r: Double,
+                color: HoldColor?, source: HoldSource = .manual) {
+        self.id = id
+        self.photoId = photoId
+        self.sectorId = sectorId
+        self.x = x
+        self.y = y
+        self.r = r
+        self.color = color
+        self.source = source
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, x, y, r, color, source
+        case photoId = "photo_id"
+        case sectorId = "sector_id"
+    }
+}
+
+/// Row of the `current_routes` view: one hold of an active problem's route
+/// on its sector's current photo.
+public struct RouteHold: Hashable, Codable, Sendable {
+    public let problemId: UUID
+    public let holdId: UUID
+    public var role: RouteRole
+    public let photoId: UUID
+    public var x: Double
+    public var y: Double
+    public var r: Double
+    public var color: HoldColor?
+
+    public init(problemId: UUID, holdId: UUID, role: RouteRole, photoId: UUID,
+                x: Double, y: Double, r: Double, color: HoldColor?) {
+        self.problemId = problemId
+        self.holdId = holdId
+        self.role = role
+        self.photoId = photoId
+        self.x = x
+        self.y = y
+        self.r = r
+        self.color = color
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case role, x, y, r, color
+        case problemId = "problem_id"
+        case holdId = "hold_id"
+        case photoId = "photo_id"
+    }
+}
+
+/// One hold of a route as staff build it: which hold, in what role.
+public struct RouteStep: Hashable, Codable, Sendable {
+    public let holdId: UUID
+    public var role: RouteRole
+
+    public init(holdId: UUID, role: RouteRole) {
+        self.holdId = holdId
+        self.role = role
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case role
+        case holdId = "hold_id"
     }
 }
 

@@ -28,19 +28,69 @@ extension GymCatalog {
             note: trimmedNote.isEmpty ? nil : trimmedNote
         )
         try await load()
+        // Suggest the new photo's holds right away. A failed detection only
+        // means staff add holds by hand, so the photo stays published.
+        if let photoId = sectors.first(where: { $0.id == sector.id })?.currentPhotoId {
+            try? await detectHolds(on: photoId, image: image)
+        }
     }
 
-    func addProblem(to sector: Sector, at point: CGPoint, draft: ProblemDraft) async throws {
-        guard let photoId = sector.currentPhotoId else { return }
-        try await backend.addProblem(
+    /// Adds a problem; with a route, its start holds place the pin.
+    @discardableResult
+    func addProblem(to sector: Sector, at point: CGPoint, draft: ProblemDraft,
+                    route: [RouteStep]? = nil) async throws -> UUID? {
+        guard let photoId = sector.currentPhotoId else { return nil }
+        let id = try await backend.addProblem(
             problemId: UUID(),
             sectorId: sector.id,
             expectedPhotoId: photoId,
             pinX: Double(point.x),
             pinY: Double(point.y),
-            draft: draft
+            draft: draft,
+            route: route
         )
         try await load()
+        return id
+    }
+
+    func setRoute(of problem: ActiveProblem, to route: [RouteStep]) async throws {
+        try await backend.setProblemRoute(problemId: problem.id, expectedPhotoId: problem.photoId, route: route)
+        try await load()
+    }
+
+    // MARK: Holds
+
+    func holds(on photo: SectorPhoto) async throws -> [PhotoHold] {
+        try await backend.photoHolds(photoId: photo.id)
+    }
+
+    /// Runs the detector on a photo and stores what it found as suggestions.
+    func detectHolds(on photoId: UUID, image: UIImage) async throws {
+        guard let bitmap = PhotoPixels.bitmap(of: image, width: HoldDetector.workWidth) else { return }
+        let found = await Task.detached(priority: .userInitiated) {
+            HoldDetector.detect(rgba: bitmap.rgba, width: bitmap.width, height: bitmap.height)
+        }.value
+        try await backend.replaceAutoHolds(photoId: photoId, holds: found)
+    }
+
+    /// Detection for a photo that is already published.
+    func detectHolds(on photo: SectorPhoto) async throws {
+        guard let url = backend.photoURL(for: photo) else { return }
+        let (data, _) = try await URLSession.shared.data(from: url)
+        guard let image = UIImage(data: data) else { throw CocoaError(.fileReadCorruptFile) }
+        try await detectHolds(on: photo.id, image: image)
+    }
+
+    /// A hold added by hand where the detector missed one.
+    func addHold(on photo: SectorPhoto, x: Double, y: Double, color: HoldColor?) async throws -> PhotoHold {
+        let hold = PhotoHold(photoId: photo.id, sectorId: photo.sectorId, x: x, y: y,
+                             r: PhotoHold.defaultRadius, color: color)
+        try await backend.upsertPhotoHold(hold)
+        return hold
+    }
+
+    func deleteHold(_ hold: PhotoHold) async throws {
+        try await backend.deletePhotoHold(id: hold.id)
     }
 
     func updateProblem(_ problem: ActiveProblem, with draft: ProblemDraft) async throws {

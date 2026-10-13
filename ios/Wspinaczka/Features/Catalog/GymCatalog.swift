@@ -13,6 +13,8 @@ final class GymCatalog {
     private(set) var sectors: [Sector] = []
     private(set) var photos: [UUID: SectorPhoto] = [:]
     private(set) var problems: [ActiveProblem] = []
+    /// Route holds of active problems, by problem id.
+    private(set) var routes: [UUID: [RouteHold]] = [:]
     private(set) var myAscents: [Ascent] = []
     private(set) var isLoading = false
 
@@ -52,6 +54,7 @@ final class GymCatalog {
         async let sectors = backend.sectors(gymId: gym.id)
         async let problems = backend.activeProblems(gymId: gym.id)
         async let ascents = backend.myAscents(gymId: gym.id)
+        async let routeHolds = backend.currentRoutes(gymId: gym.id)
 
         let loadedSectors = try await sectors
         let photoIds = loadedSectors.compactMap(\.currentPhotoId)
@@ -62,6 +65,25 @@ final class GymCatalog {
         self.photos = Dictionary(uniqueKeysWithValues: loadedPhotos.map { ($0.id, $0) })
         self.problems = try await problems
         self.myAscents = try await ascents
+        // Routes are extra: a catalog without them still works.
+        self.routes = Dictionary(grouping: (try? await routeHolds) ?? [], by: \.problemId)
+    }
+
+    func route(of problem: ActiveProblem) -> [RouteHold] {
+        routes[problem.id] ?? []
+    }
+
+    /// New or changed since my last visit (or within the last week).
+    func freshness(of problem: ActiveProblem) -> Freshness? {
+        Freshness.of(problem, lastVisit: lastVisit, now: .now, timeZone: gym.timeZone)
+    }
+
+    /// The last day I topped (or flashed) the problem.
+    func lastTop(of problem: ActiveProblem) -> LocalDate? {
+        myAscents
+            .filter { $0.problemId == problem.id && $0.result != .project }
+            .map(\.localDate)
+            .max()
     }
 
     var areas: [SectorArea] { Sector.groupedByArea(sectors) }

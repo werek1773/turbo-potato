@@ -11,6 +11,21 @@ public enum HoldColor: String, Codable, Sendable, CaseIterable {
     case red, orange, yellow, green, blue, purple, pink, black, white, grey, brown, multi
 }
 
+/// What a hold does in a problem's route.
+public enum RouteRole: String, Codable, Sendable, CaseIterable {
+    case start, hand, top
+}
+
+/// Where a hold on a photo came from: the app's detector or staff.
+public enum HoldSource: String, Codable, Sendable {
+    case auto, manual
+}
+
+/// What changed in a problem since it was set (for the freshness mark).
+public enum ChangeKind: String, Codable, Sendable {
+    case grade, route, both
+}
+
 public enum StyleTag: String, Codable, Sendable, CaseIterable {
     case slab, vertical, overhang, roof
     case crimps, slopers, pinches, pockets, jugs, volumes

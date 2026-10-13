@@ -7,7 +7,8 @@ public struct ProblemFilter: Hashable, Sendable {
     public var sectorIds: Set<UUID>
     public var colors: Set<HoldColor>
     public var onlyNotTopped: Bool
-    /// Only problems set after this climbing day (e.g. the last visit).
+    /// Only problems set, or regraded or rerouted, after this climbing day
+    /// (e.g. the last visit).
     public var setAfter: LocalDate?
 
     public init(gradeOrders: ClosedRange<Int>? = nil, sectorIds: Set<UUID> = [],
@@ -33,7 +34,12 @@ public struct ProblemFilter: Hashable, Sendable {
         if !sectorIds.isEmpty, !sectorIds.contains(problem.sectorId) { return false }
         if !colors.isEmpty, !colors.contains(problem.holdColor) { return false }
         if onlyNotTopped, toppedProblemIds.contains(problem.id) { return false }
-        if let setAfter, ClimbingDay.localDate(for: problem.setAt, in: timeZone) <= setAfter { return false }
+        if let setAfter {
+            // New since then, or with a new grade or route since then.
+            let isNew = ClimbingDay.localDate(for: problem.setAt, in: timeZone) > setAfter
+            let isChanged = problem.changedAt.map { ClimbingDay.localDate(for: $0, in: timeZone) > setAfter } ?? false
+            if !isNew && !isChanged { return false }
+        }
         return true
     }
 
